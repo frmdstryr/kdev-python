@@ -16,7 +16,7 @@ namespace Python
 static void dumpNode(QString &r, QString prefix, const Ast* node)
 {
     r.append(prefix);
-    r.append(node ? node->dump(): "None");
+    r.append(node ? node->dump(): "nullptr");
 }
 
 

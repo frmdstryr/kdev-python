@@ -25,8 +25,9 @@ public:
     Grammar grammar;
 
     AstTransformer() {}
+    virtual ~AstTransformer() {}
 
-    void run(PyObject *syntaxtree, QString moduleName) {
+    virtual void run(PyObject *syntaxtree, QString moduleName) {
         ast = static_cast<CodeAst*>(visitModuleNode(syntaxtree, nullptr));
         ast->name = new Identifier(moduleName);
     }
@@ -45,7 +46,7 @@ public:
     }
 
 public:
-    Ast* visitNode(PyObject* node, Ast* parent);
+    virtual Ast* visitNode(PyObject* node, Ast* parent);
     template<typename K> QList<K*> visitNodeList(PyObject* node, Ast* parent);
     Ast* visitModuleNode(PyObject* node, Ast* parent);
     Ast* visitStmtNode(PyObject* node, Ast* parent);
