@@ -26,9 +26,9 @@ public:
     CodeAst::Ptr getAst(QString code);
     void testCode(QString code);
 private slots:
-    void testClass();
-    void testStatements();
+    void testClass();void testStatements();
     void testStatements_data();
+
     void testExpressions();
     void testExpressions_data();
     void testSlices();
