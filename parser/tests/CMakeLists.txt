@@ -9,3 +9,8 @@ set(pycythontest_SRCS pycythontest.cpp ../parserdebug.cpp)
 ecm_add_test(${pycythontest_SRCS}
     TEST_NAME pycythontest
     LINK_LIBRARIES kdevpythonparser Qt5::Test KDev::Tests)
+
+set(pyenamltest_SRCS pyenamltest.cpp ../parserdebug.cpp)
+ecm_add_test(${pyenamltest_SRCS}
+    TEST_NAME pyenamltest
+    LINK_LIBRARIES kdevpythonparser Qt5::Test KDev::Tests)

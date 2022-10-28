@@ -16,7 +16,6 @@
 #include "astbuilder.h"
 
 #include "pycythontest.h"
-#include "../cythonsyntaxremover.h"
 #include "../astbuilder.h"
 #include "../parserdebug.h"
 
@@ -76,8 +75,8 @@ void PyCythonTest::testCythonReplacement()
     QFETCH(QString, input);
     QFETCH(QString, output);
     QFETCH(bool, do_python_test);
-    CythonSyntaxRemover stripper;
-    QCOMPARE(stripper.stripCythonSyntax(input), output);
+    //CythonSyntaxRemover stripper;
+    //QCOMPARE(stripper.stripCythonSyntax(input), output);
     if(do_python_test) {
         CodeAst::Ptr ast = getAst(input, QUrl("test.pyx"));
         VerifyVisitor v;
