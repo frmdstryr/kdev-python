@@ -5,7 +5,9 @@ set(parser_STAT_SRCS
     astdefaultvisitor.cpp
     astvisitor.cpp
     astbuilder.cpp
-    asttransformer.cpp
+    python_asttransformer.cpp
+    enaml_asttransformer.cpp
+    cython_asttransformer.cpp
     rangefixvisitor.cpp
 )
 ecm_qt_declare_logging_category(parser_STAT_SRCS

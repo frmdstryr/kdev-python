@@ -14,8 +14,9 @@
 
 #include <memory>
 
-#include "python_header.h"
-#include "asttransformer.h"
+#include "python_parser.h"
+#include "enaml_parser.h"
+#include "cython_parser.h"
 #include "astdefaultvisitor.h"
 #include "rangefixvisitor.h"
 
@@ -50,56 +51,42 @@ QString PyUnicodeObjectToQString(PyObject* obj) {
     Q_UNREACHABLE();
 }
 
-struct PythonParser : private QMutexLocker
-{
-    PyObject* m_parser_mod = nullptr;
-    PyObject* m_parse_func = nullptr;
 
-    PythonParser(QMutex& lock): QMutexLocker(&lock)
-    {
-        Py_InitializeEx(0);
-        Q_ASSERT(Py_IsInitialized());
-        m_parser_mod = PyImport_ImportModule("ast");
-        Q_ASSERT(m_parser_mod); // parser import error
-        m_parse_func = PyObject_GetAttrString(m_parser_mod, "parse");
-        Q_ASSERT(m_parse_func); // parser function renamed?
-    }
-
-    // Call parser function and return the python ast.Module.
-    // NOTE: The caller must DECREF the result
-    PyObject* parse(QString const &source, QString const &filename) const
-    {
-        PyObject* args = PyTuple_New(3);
-        PyTuple_SET_ITEM(args, 0, PyUnicode_FromString(source.toUtf8().data()));
-        PyTuple_SET_ITEM(args, 1, PyUnicode_FromString(filename.toUtf8().data()));
-        PyTuple_SET_ITEM(args, 2, PyUnicode_FromString("exec"));
-        PyObject *result = PyObject_CallObject(m_parse_func, args);
-        Py_DECREF(args);
-        return result;
-    }
-
-    ~PythonParser()
-    {
-        if (Py_IsInitialized())
-        {
-            Py_XDECREF(m_parse_func);
-            Py_XDECREF(m_parser_mod);
-            Py_Finalize();
-        }
-    }
-};
 
 CodeAst::Ptr AstBuilder::parse(const QUrl& filename, QString &contents)
 {
     qCDebug(KDEV_PYTHON_PARSER) << " ====> AST     ====>     building abstract syntax tree for " << filename.path();
     
-    Py_NoSiteFlag = 1;
-    
     contents.append('\n');
+    Parser *parser = nullptr;
     
-    PythonParser py_parser(pyInitLock);
+    if (filename.fileName().endsWith(".pyx")) {
+        parser = new Cython::Parser(pyInitLock);
+    }
+    else if (filename.fileName().endsWith(".enaml")) {
+        parser = new Enaml::Parser(pyInitLock);
+    }
+    else {
+        parser = new Python::Parser(pyInitLock);
+    }
 
-    PyObject* syntaxtree = py_parser.parse(contents, filename.fileName());
+    Q_ASSERT(parser);
+    if (!parser->load())
+    {
+        qCWarning(KDEV_PYTHON_PARSER) << "Internal parser error: failed to load parser";
+        PyObject *exception, *value, *backtrace;
+        PyErr_Fetch(&exception, &value, &backtrace);
+        if (value)
+        {
+            PyObject* msg = PyObject_GetAttrString(value, "msg");
+            if (msg)
+                qCWarning(KDEV_PYTHON_PARSER) << PyUnicodeObjectToQString(msg);
+        }
+        delete parser;
+        return CodeAst::Ptr(); // Module missing
+    }
+
+    PyObject* syntaxtree = parser->parse(contents, filename.fileName());
 
     if ( ! syntaxtree ) {
         qCDebug(KDEV_PYTHON_PARSER) << " ====< parse error, trying to fix";
@@ -110,12 +97,14 @@ CodeAst::Ptr AstBuilder::parse(const QUrl& filename, QString &contents)
 
         if ( ! value ) {
             qCWarning(KDEV_PYTHON_PARSER) << "Internal parser error: exception value is null, aborting";
+            delete parser;
             return CodeAst::Ptr();
         }
         PyErr_NormalizeException(&exception, &value, &backtrace);
 
         if ( ! PyObject_IsInstance(value, PyExc_SyntaxError) ) {
             qCWarning(KDEV_PYTHON_PARSER) << "Exception was not a SyntaxError, aborting";
+            delete parser;
             return CodeAst::Ptr();
         }
         PyObject* errorMessage_str = PyObject_GetAttrString(value, "msg");
@@ -206,7 +195,7 @@ CodeAst::Ptr AstBuilder::parse(const QUrl& filename, QString &contents)
             }
         }
 
-        syntaxtree = py_parser.parse(contents, filename.fileName());
+        syntaxtree = parser->parse(contents, filename.fileName());
         // 3rd try: discard everything after the last non-empty line, but only until the next block start
         currentLineBeginning = qMin(contents.length() - 1, currentLineBeginning);
         errline = qMax(0, qMin(indents.length()-1, errline));
@@ -251,23 +240,21 @@ CodeAst::Ptr AstBuilder::parse(const QUrl& filename, QString &contents)
                 if ( c.isSpace() && atLineBeginning ) currentIndent += 1;
             }
             qCDebug(KDEV_PYTHON_PARSER) << "This is what is left: " << contents;
-            syntaxtree = py_parser.parse(contents, filename.fileName());
+            syntaxtree = parser->parse(contents, filename.fileName());
         }
         if ( ! syntaxtree ) {
+            delete parser;
             return CodeAst::Ptr(); // everything fails, so we abort.
         }
     }
     QString kind = PyUnicodeObjectToQString(PyObject_Repr(syntaxtree));
     qCDebug(KDEV_PYTHON_PARSER) << "Got syntax tree from python parser:" << kind;
 
-    AstTransformer t;
-    t.run(syntaxtree, filename.fileName().replace(".py", ""));
+    CodeAst::Ptr ast = parser->transform(syntaxtree, filename.fileName().replace(".py", ""));
     Py_DECREF(syntaxtree);
-
-    RangeFixVisitor fixVisitor(contents);
-    fixVisitor.visitNode(t.ast);
-
-    return CodeAst::Ptr(t.ast);
+    parser->fixRanges(contents, ast);
+    delete parser;
+    return ast;
 }
 
 }
