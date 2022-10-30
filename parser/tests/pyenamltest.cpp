@@ -24,7 +24,11 @@
 #include <QDebug>
 #include <QtTest>
 
-using namespace Python;
+using namespace Enaml;
+using Python::CodeAst;
+using Python::Ast;
+using Python::NameAst;
+using Python::AstDefaultVisitor;
 
 QTEST_MAIN(PyEnamlTest)
 
@@ -44,10 +48,11 @@ void PyEnamlTest::initShell()
 
 CodeAst::Ptr PyEnamlTest::getAst(QString code, const QUrl& filename)
 {
-    QSharedPointer<AstBuilder> builder(new AstBuilder);
+    QSharedPointer<Python::AstBuilder> builder(new Python::AstBuilder);
     m_builder = builder;
+    qDebug() << "parsing: " << code;
     CodeAst::Ptr result = builder->parse(filename, code);
-    qDebug() << result->dump();
+    qDebug() << "ast: " << result->dump();
     return result;
 }
 
@@ -90,46 +95,102 @@ void PyEnamlTest::testStatements_data()
     QTest::addColumn<QString>("code");
     QTest::newRow("assign_int") << "a = 3";
     QTest::newRow("enamldef") << "enamldef A(B):\n pass";
-    QTest::newRow("enamldef_attr") << "enamldef A(B):\n attr x";
-    QTest::newRow("enamldef_attr_default") << "enamldef A(B):\n attr x = 1";
-    QTest::newRow("enamldef_attr_type_default") << "enamldef A(B):\n attr x: int = 1";
-    QTest::newRow("enamldef_binding_eq") << "enamldef A(B):\n x = 1";
-    QTest::newRow("enamldef_binding_left") << "enamldef A(B):\n x << y";
-    QTest::newRow("enamldef_binding_both") << "enamldef A(B):\n x := y";
-    QTest::newRow("enamldef_func") << "enamldef A(B):\n func x():\n  pass";
-    QTest::newRow("enamldef_func2") << "enamldef A(B):\n func x():\n  return 1";
-    QTest::newRow("enamldef_func3") << "enamldef A(B):\n func x(a):\n  pass";
-    QTest::newRow("enamldef_func4") << "enamldef A(B):\n func x(a: int, *b):\n  pass";
-    QTest::newRow("enamldef_func5") << "enamldef A(B):\n func x(a, *b, **kwargs):\n  pass";
-    QTest::newRow("enamldef_async_func") << "enamldef A(B):\n async func x(a):\n  pass";
+    QTest::newRow("attr") << "enamldef A(B):\n attr x";
+    QTest::newRow("two_attr") << "enamldef A(B):\n attr x\n attr y";
+    QTest::newRow("attr_default") << "enamldef A(B):\n attr x = 1";
+    QTest::newRow("attr_type_default") << "enamldef A(B):\n attr x: int = 1";
+    QTest::newRow("binding_eq") << "enamldef A(B):\n x = 1";
+    QTest::newRow("binding_read") << "enamldef A(B):\n x << y";
+    QTest::newRow("binding_both") << "enamldef A(B):\n x := y";
+    QTest::newRow("two_bindings") << "enamldef A(B):\n x := y\n a = 2";
+    QTest::newRow("binding_change_block") << "enamldef A(B):\n x ::\n  x+=1\n  print(x)";
+    QTest::newRow("binding_read_block") << "enamldef A(B):\n x <<\n  return 1";
+    QTest::newRow("func") << "enamldef A(B):\n func x():\n  pass";
+    QTest::newRow("two_funcs") << "enamldef A(B):\n func x():\n  pass\n func y():\n  pass";
+    QTest::newRow("func2") << "enamldef A(B):\n func x():\n  return 1";
+    QTest::newRow("func_override") << "enamldef A(B):\n func x():\n  return 1\nenamldef C(A):\n x=>():\n  return 2";
+    QTest::newRow("async_func") << "enamldef A(B):\n async func x(a):\n  pass";
+    QTest::newRow("childdef") << "enamldef A(B):\n C:\n  pass";
+    QTest::newRow("enamldef_then_py_mod") << "enamldef A(B):\n pass\ndef foo():\n pass";
+    QTest::newRow("py_mod_enamldef_py_mod") << "from a import B\nenamldef A(B):\n pass\nclass C:\n pass";
 }
 
-// void PyEnamlTest::testEnamlRanges() {
-//     QFETCH(QString, code);
-//     QFETCH(KTextEditor::Range, range);
-//
-//     CodeAst::Ptr ast = getAst(code, QUrl("test.enaml"));
-//     QVERIFY(ast);
-//     foreach ( Ast* node, ast->body ) {
-//         if ( node->astType != Ast::FunctionDefinitionAstType ) {
-//             continue;
-//         }
-//         FunctionDefinitionAst* func = static_cast<FunctionDefinitionAst*>(node);
-//         QVERIFY(func->name);
-//         qCDebug(KDEV_PYTHON_PARSER) << func->name->range() << range;
-//         QCOMPARE(func->name->range(), range);
-//     }
-// }
-//
-// void PyEnamlTest::testEnamlRanges_data()
-// {
-//     QTest::addColumn<QString>("code");
-//     QTest::addColumn<KTextEditor::Range>("range");
-//
-//     QTest::newRow("cdef") << "cdef foobar(arg): pass" << KTextEditor::Range(0, 5, 0, 10);
-//     QTest::newRow("cdef_return") << "cdef float* foobar(arg): pass" << KTextEditor::Range(0, 12, 0, 17);
-//     QTest::newRow("normal_def") << "def foobar(arg): pass" << KTextEditor::Range(0, 4, 0, 9);
-// }
-//
+
+class RangeVerifyVisitor : public AstDefaultVisitor {
+public:
+    RangeVerifyVisitor() : AstDefaultVisitor() { };
+    void visitName(NameAst* node) override {
+        QVERIFY(! node->identifier->value.isNull());
+        if (node->identifier->value == searchingForIdentifier) {
+            found = true;
+            QCOMPARE( node->identifier->range(),  searchingForRange);
+        }
+        AstDefaultVisitor::visitName(node);
+    };
+
+    void visitClassDefinition(Python::ClassDefinitionAst* node) override {
+        QVERIFY(! node->name->value.isNull());
+        if (node->name->value == searchingForIdentifier) {
+            QVERIFY(!found);
+            found = true;
+            QCOMPARE( node->name->range(),  searchingForRange);
+        }
+        AstDefaultVisitor::visitClassDefinition(node);
+    };
+
+    void visitFunctionDefinition(Python::FunctionDefinitionAst* node) override {
+        QVERIFY(! node->name->value.isNull());
+        if (node->name->value == searchingForIdentifier) {
+            QVERIFY(!found);
+            found = true;
+            QCOMPARE( node->name->range(),  searchingForRange);
+        }
+        AstDefaultVisitor::visitFunctionDefinition(node);
+    };
+
+    bool found = false;
+    QString searchingForIdentifier;
+    KTextEditor::Range searchingForRange;
+};
+
+
+void PyEnamlTest::testRanges() {
+    QFETCH(QString, code);
+    QFETCH(QString, identifier);
+    QFETCH(KTextEditor::Range, range);
+
+    CodeAst::Ptr ast = getAst(code, QUrl("test.enaml"));
+    QVERIFY(ast);
+
+    RangeVerifyVisitor visitor;
+    visitor.searchingForRange = range;
+    visitor.searchingForIdentifier = identifier;
+    visitor.visitCode(ast.data());
+    QVERIFY(visitor.found);
+}
+
+void PyEnamlTest::testRanges_data()
+{
+    QTest::addColumn<QString>("code");
+    QTest::addColumn<QString>("identifier");
+    QTest::addColumn<KTextEditor::Range>("range");
+
+    // NOTE: endCol is inclusive (aka len - 1)
+    QTest::newRow("enamldef") << "enamldef Main(Window):\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
+    QTest::newRow("func") << "enamldef Main(Window):\n func submit():\n  pass" << "submit" << KTextEditor::Range(1, 6, 1, 11);
+    QTest::newRow("async_func") << "enamldef Main(Window):\n async func submit():\n  pass" << "submit" << KTextEditor::Range(1, 12, 1, 17);
+    QTest::newRow("func_override") << "enamldef A(B):\n foo=>():\n  pass" << "foo" << KTextEditor::Range(1, 1, 1, 3);
+    QTest::newRow("async_func_override") << "enamldef A(B):\n  async foo => ():\n   pass" << "foo" << KTextEditor::Range(1, 8, 1, 10);
+    QTest::newRow("attr") << "enamldef Main(Window):\n attr x: int = 1" << "x" << KTextEditor::Range(1, 6, 1, 6);
+    QTest::newRow("binding") << "enamldef Main(Window):\n x = 1" << "x" << KTextEditor::Range(1, 1, 1, 1);
+    QTest::newRow("binding_value") << "enamldef Main(Window):\n x = y" << "y" << KTextEditor::Range(1, 5, 1, 5);
+    QTest::newRow("childdef") << "enamldef Main(Window):\n Label:\n  pass" << "Label_1" << KTextEditor::Range(1, 1, 1, 5);
+    QTest::newRow("childdef_func") << "enamldef Main(Window):\n Label:\n  func foo():\n    pass" << "foo" << KTextEditor::Range(2, 7, 2, 9);
+    QTest::newRow("childdef_intented") << "enamldef Main(Window):\n    Label:\n        pass" << "Label_1" << KTextEditor::Range(1, 4, 1, 8);
+    QTest::newRow("nested_childdef") << "enamldef Main(Window):\n Container:\n  Label:\n   pass" << "Label_2" << KTextEditor::Range(2, 2, 2, 6);
+    QTest::newRow("enamldef_then_mod") << "enamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(2, 4, 2, 6);
+    QTest::newRow("mod_enamldef_mod") << "from x import Window\nenamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(3, 4, 3, 6);
+}
+
 
 

@@ -6,6 +6,7 @@ namespace Enaml {
     ast_##name = PyObject_GetAttrString(mod, #name); \
     Q_ASSERT(ast_##name)
 
+
 class Grammar {
 public:
     PyObject* ast_ASTNode;

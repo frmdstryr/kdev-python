@@ -4,12 +4,22 @@
 namespace Python
 {
 
+bool checkattr(PyObject* obj, PyObject* result, const char *attr)
+{
+    if (!result)
+    {
+        qCritical() << PyUnicodeObjectToQString(PyObject_Repr(obj)) << " object has no attr '" << attr << "'";
+        return false;
+    }
+    return true;
+}
+
 template <>
 QString AstTransformer::getattr(PyObject *obj, const char *attr) const
 {
     PyObject *v = PyObject_GetAttrString(obj, attr);
     // qDebug() << "getattr<str>: " << PyUnicodeObjectToQString(PyObject_Str(obj)) << "." << attr << "v=" << PyUnicodeObjectToQString(PyObject_Str(v));
-    Q_ASSERT(v); // attr missing
+    Q_ASSERT(checkattr(obj, v, attr));
     if (PyUnicode_Check(v))
         return PyUnicodeObjectToQString(v);
     Py_XDECREF(v);
@@ -21,7 +31,7 @@ bool AstTransformer::getattr(PyObject *obj, const char *attr) const
 {
     PyObject *v = PyObject_GetAttrString(obj, attr);
     // qDebug() << "getattr<bool>: " << PyUnicodeObjectToQString(PyObject_Str(obj)) << "." << attr;
-    Q_ASSERT(v); // attr missing
+    Q_ASSERT(checkattr(obj, v, attr));
     bool r = PyObject_IsTrue(v) == 1;
     Py_XDECREF(v);
     return r;
@@ -48,7 +58,7 @@ PyObject* AstTransformer::getattr(PyObject *obj, const char *attr) const
 {
     // qDebug() << "getattr<obj>: " << PyUnicodeObjectToQString(PyObject_Str(obj)) << "." << attr;;
     PyObject* v = PyObject_GetAttrString(obj, attr);
-    Q_ASSERT(v); // attr missing
+    Q_ASSERT(checkattr(obj, v, attr));
     return v;
 }
 

@@ -12,8 +12,13 @@ namespace KDevelop {
 }
 
 namespace Python {
-
 class AstBuilder;
+class CodeAst;
+
+
+}
+
+namespace Enaml {
 
 class PyEnamlTest : public QObject
 {
@@ -21,17 +26,17 @@ Q_OBJECT
 public:
     explicit PyEnamlTest(QObject* parent = nullptr);
     void initShell();
-    CodeAst::Ptr getAst(QString code, const QUrl& filename);
+    Python::CodeAst::Ptr getAst(QString code, const QUrl& filename);
 
 private:
-    QSharedPointer<AstBuilder> m_builder;
+    QSharedPointer<Python::AstBuilder> m_builder;
 
 private slots:
     void testCode(QString code);
     void testStatements();
     void testStatements_data();
-    //void testEnamlRanges();
-    //void testEnamlRanges_data();
+    void testRanges();
+    void testRanges_data();
 };
 
 }

@@ -9,3 +9,4 @@ build/*
 *.a
 *.so
 *.orig
+*.kate-swp
