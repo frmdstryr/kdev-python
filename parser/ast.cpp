@@ -345,10 +345,6 @@ DictionaryComprehensionAst::DictionaryComprehensionAst(Ast* parent): ExpressionA
     
 }
 
-ExceptionHandlerAst::ExceptionHandlerAst(Ast* parent): Ast(parent, Ast::ExceptionHandlerAstType), type(nullptr), name(nullptr)
-{
-    
-}
 
 ListComprehensionAst::ListComprehensionAst(Ast* parent): ExpressionAst(parent, Ast::ListComprehensionAstType), element(nullptr)
 {
@@ -809,12 +805,6 @@ QString YieldAst::dump() const
     dumpNode(r, "value=", value);
     r.append(")");
     return r;
-}
-
-
-AliasAst::AliasAst(Ast* parent): Ast(parent, Ast::AliasAstType), name(nullptr), asName(nullptr)
-{
-    
 }
 
 QString AliasAst::dump() const

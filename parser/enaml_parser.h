@@ -1,6 +1,7 @@
 #pragma once
 #include "python_parser.h"
 #include "enaml_asttransformer.h"
+#include "enaml_rangefixvisitor.h"
 
 namespace Enaml {
 
@@ -39,9 +40,8 @@ struct Parser: public Python::Parser
 
     void fixRanges(QString &contents, Python::CodeAst::Ptr ast) override
     {
-        // No-op
-        Q_UNUSED(contents);
-        Q_UNUSED(ast);
+        RangeFixVisitor fixVisitor(contents);
+        fixVisitor.visitNode(ast.get());
     }
 
 };
