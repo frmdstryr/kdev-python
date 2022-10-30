@@ -38,7 +38,7 @@ public:
     void visitList(Python::ListAst* node) override;
     void visitTuple(Python::TupleAst* node) override;
 
-private:
+protected:
     void cutDefinitionPreamble(Ast* fixNode, const QString& defKeyword);
     int backtrackDottedName(const QString& data, const int start);
     void fixAlias(Ast* dotted, Ast* asname, const int startLine, int aliasIndex);
