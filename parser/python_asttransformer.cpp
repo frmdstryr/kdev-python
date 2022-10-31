@@ -148,7 +148,7 @@ QList<K*> AstTransformer::visitNodeList(PyObject* node, Ast* parent)
     Q_ASSERT(PyList_Check(node));
     for ( int i=0; i < PyList_Size(node); i++ )
     {
-        PyObject* currentNode = PyList_GetItem(node, i);
+        PyObject* currentNode = PyList_GET_ITEM(node, i);
         Ast* result = visitNode(currentNode, parent);
         K* transformedNode = static_cast<K*>(result);
         nodelist.append(transformedNode);
