@@ -20,11 +20,11 @@ void AstTransformer::run(PyObject* syntaxtree, QString moduleName)
     ast->name = new Python::Identifier(moduleName);
     {
         // qDebug() << "Visit enaml module: " << PyUnicodeObjectToQString(PyObject_Str(syntaxtree));
-        PyObjectRef body = getattr<PyObjectRef>(syntaxtree, "body");
+        PyObject* body = getattr<PyObjectRef>(syntaxtree, "body");
         Q_ASSERT(PyList_Check(body));
         for ( int i=0; i < PyList_Size(body); i++ )
         {
-            PyObject* currentNode = PyList_GetItem(body, i);
+            PyObject* currentNode = PyList_GET_ITEM(body, i);
             if (PyObject_IsInstance(currentNode, enaml.ast_PythonModule))
                 ast->body.append(visitPythonModuleNode(currentNode, ast));
             else if (PyObject_IsInstance(currentNode, enaml.ast_EnamlDef))
@@ -35,6 +35,7 @@ void AstTransformer::run(PyObject* syntaxtree, QString moduleName)
                 qWarning() << "Unhandled enaml node" << Python::PyUnicodeObjectToQString(PyObject_Str(currentNode));
             //
         }
+        Py_DECREF(body);
         // TODO: Pragmas?
     }
 }
@@ -146,6 +147,10 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             v->body = visitEnamlDefBody(body, v);
         }
         result.append(v);
+
+        // Build a with ChildDef() as self to set the block context
+
+
     }
     else if (PyObject_IsInstance(node, enaml.ast_Binding)) {
         // qDebug() << "binding";
@@ -221,13 +226,13 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
                     v->value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
                 }
 
-                qWarning() << "before " << Ast::dump(v->value);
+                //qWarning() << "before " << Ast::dump(v->value);
                 v->value->startCol = v->target->endCol + op.size();
                 v->value->startLine = v->startLine;
-                qWarning() << "after " << Ast::dump(v->value);
+                //qWarning() << "after " << Ast::dump(v->value);
             }
         }
-        updateRanges(v);
+        //updateRanges(v);
         result.append(v);
     }
     else if (PyObject_IsInstance(node, enaml.ast_ExBinding)) {
