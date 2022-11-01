@@ -13,14 +13,14 @@
 namespace Python
 {
 
-static void dumpNode(QString &r, QString prefix, const Ast* node)
+void Ast::dumpNode(QString &r, QString prefix, const Ast* node)
 {
     r.append(prefix);
     r.append(node ? node->dump(): "nullptr");
 }
 
 
-static void dumpContext(QString &r, QString prefix, ExpressionAst::Context context)
+void dumpContext(QString &r, QString prefix, ExpressionAst::Context context)
 {
     r.append(prefix);
     switch(context) {
@@ -81,7 +81,7 @@ static void dumpOperator(QString &r, QString prefix, Ast::OperatorTypes op)
 }
 
 template<class T>
-static void dumpList(QString &r, QString prefix, const T list, QString sep=", ")
+void Ast::dumpList(QString &r, QString prefix, const T list, QString sep)
 {
     int i = 0;
     r.append(prefix);
