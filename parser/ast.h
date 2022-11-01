@@ -251,6 +251,10 @@ public:
 
     virtual QString dump() const { return Ast::dump(this); }
 
+    static void dumpNode(QString &r, QString prefix, const Ast* node);
+    template<class T>
+    static void dumpList(QString &r, QString prefix, const T list, QString sep=", ");
+
     int startCol = 0;
     int startLine = 0;
     int endCol = 0;
