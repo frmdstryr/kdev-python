@@ -28,6 +28,7 @@ public:
     void visitClassDefinition(ClassDefinitionAst* node) override;
     void visitAttribute(AttributeAst* node) override;
     void visitImport(ImportAst* node) override;
+    void visitImportFrom(ImportFromAst* node) override;
     void visitExceptionHandler(ExceptionHandlerAst* node) override;
     void visitString(Python::StringAst* node) override;
     void visitBytes(Python::BytesAst* node) override;
