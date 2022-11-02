@@ -689,6 +689,16 @@ public:
         }
         AstDefaultVisitor::visitClassDefinition(node);
     }
+    void visitImportFrom(ImportFromAst* node) override {
+        if ( node->module) {
+            qDebug() << "found import from" << node->module->value << node->module->range();
+        }
+        if ( node->module && node->module->value == searchingForIdentifier && node->module->range() == searchingForRange ) {
+            found = true;
+            return;
+        }
+    }
+
     void visitImport(ImportAst* node) override {
         foreach ( const AliasAst* name, node->names ) {
             if ( name->name ) {
@@ -732,6 +742,8 @@ void PyDUChainTest::testRanges()
         visitor->searchingForIdentifier = identifier;
         visitor->visitCode(m_ast.data());
         QEXPECT_FAIL("attr_dot_name_hash", "Insufficiently magic hack", Continue);
+        if (!visitor->found)
+            qDebug() << m_ast->dump();
         QCOMPARE(visitor->found, true);
         delete visitor;
     }
@@ -781,6 +793,7 @@ void PyDUChainTest::testRanges_data()
     QTest::newRow("import") << "import sys" << 1 << ( QStringList() << "7,10,sys" );
     QTest::newRow("import2") << "import i.localvar1" << 1 << ( QStringList() << "7,18,i.localvar1" );
     QTest::newRow("import3") << "import sys as a" << 1 << ( QStringList() << "13,14,a" );
+    QTest::newRow("importfrom") << "from foo import bar" << 1 << ( QStringList() << "5,7,foo");
 }
 
 class TypeTestVisitor : public AstDefaultVisitor {
