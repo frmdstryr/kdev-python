@@ -13,14 +13,42 @@
 namespace Python
 {
 
-void Ast::dumpNode(QString &r, QString prefix, const Ast* node)
+void Ast::dumpNode(QString &r, const QString &prefix, const Ast* node)
 {
     r.append(prefix);
     r.append(node ? node->dump(): "nullptr");
 }
 
+void Ast::dumpRange(QString &r, const QString &prefix, const Ast* node)
+{
+    r.append(prefix);
+    r.append("(");
+    r.append(QString::fromLatin1("%1").arg(node->startLine));
+    r.append(", ");
+    r.append(QString::fromLatin1("%1").arg(node->startCol));
+    r.append(", ");
+    r.append(QString::fromLatin1("%1").arg(node->endLine));
+    r.append(", ");
+    r.append(QString::fromLatin1("%1").arg(node->endCol));
+    r.append(")");
+}
 
-void dumpContext(QString &r, QString prefix, ExpressionAst::Context context)
+template<class T>
+void Ast::dumpList(QString &r, const QString &prefix, const T list, QString sep)
+{
+    int i = 0;
+    r.append(prefix);
+    r.append("[");
+    foreach(const Ast* node, list) {
+        i += 1;
+        dumpNode(r, "", node);
+        if (i < list.size())
+            r.append(sep);
+    }
+    r.append("]");
+}
+
+void dumpContext(QString &r, const QString &prefix, ExpressionAst::Context context)
 {
     r.append(prefix);
     switch(context) {
@@ -38,7 +66,7 @@ void dumpContext(QString &r, QString prefix, ExpressionAst::Context context)
     }
 }
 
-static void dumpOperator(QString &r, QString prefix, Ast::OperatorTypes op)
+static void dumpOperator(QString &r, const QString &prefix, Ast::OperatorTypes op)
 {
     r.append(prefix);
     switch(op) {
@@ -80,20 +108,6 @@ static void dumpOperator(QString &r, QString prefix, Ast::OperatorTypes op)
     }
 }
 
-template<class T>
-void Ast::dumpList(QString &r, QString prefix, const T list, QString sep)
-{
-    int i = 0;
-    r.append(prefix);
-    r.append("[");
-    foreach(const Ast* node, list) {
-        i += 1;
-        dumpNode(r, "", node);
-        if (i < list.size())
-            r.append(sep);
-    }
-    r.append("]");
-}
 
 // We never need actual constructors for AST nodes, but it seems to be required, at least for some platforms
 // so we provide pseudo implementations
@@ -119,6 +133,7 @@ QString ArgumentsAst::dump() const
         dumpNode(r, ", vararg=", vararg);
     if (kwarg)
         dumpNode(r, ", kwarg=", kwarg);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -133,6 +148,7 @@ QString ArgAst::dump() const
     QString r = "arg(";
     dumpNode(r, "name=", argumentName);
     dumpNode(r, ", annotation=", annotation);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -147,6 +163,7 @@ QString AssertionAst::dump() const
     QString r = "Assertion(";
     dumpNode(r, "condition=", condition);
     dumpNode(r, ", message=", message);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -161,6 +178,7 @@ QString AssignmentAst::dump() const
     QString r = "Assign(";
     dumpList(r, "targets=", targets);
     dumpNode(r, ", value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -176,6 +194,7 @@ QString AttributeAst::dump() const
     dumpNode(r, "value=", value);
     dumpNode(r, ", attr=", attribute);
     dumpContext(r, ", ctx=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -191,6 +210,7 @@ QString AugmentedAssignmentAst::dump() const
     dumpNode(r, "target=", target);
     dumpNode(r, ", value=", value);
     dumpOperator(r, ", op=", op);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -206,6 +226,7 @@ QString AnnotationAssignmentAst::dump() const
     dumpNode(r, "target=", target);
     dumpNode(r, ", value=", value);
     dumpNode(r, ", annotation=", annotation);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -216,9 +237,41 @@ BinaryOperationAst::BinaryOperationAst(Ast* parent): ExpressionAst(parent, Ast::
 
 }
 
+
+QString BinaryOperationAst::dump() const
+{
+    QString r = "BinaryOperation(";
+    dumpNode(r, "lhs=", lhs);
+    dumpOperator(r, ", op=", type);
+    dumpNode(r, ", rhs=", rhs);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
+
+
 BooleanOperationAst::BooleanOperationAst(Ast* parent): ExpressionAst(parent, Ast::BooleanOperationAstType)
 {
     
+}
+
+QString BooleanOperationAst::dump() const
+{
+    QString r = "BooleanOperation(type=";
+    switch (type) {
+        case Ast::BooleanAnd:
+            r.append("And");
+            break;
+        case Ast::BooleanOr:
+            r.append("Or");
+            break;
+        default:
+            r.append("Invalid");
+    }
+    dumpList(r, ", values=", values);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
 }
 
 BreakAst::BreakAst(Ast* parent): StatementAst(parent, Ast::BreakAstType)
@@ -239,6 +292,7 @@ QString CallAst::dump() const
     dumpNode(r, "func=", function);
     dumpList(r, ", args=", arguments);
     dumpList(r, ", keywords=", keywords);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -258,6 +312,7 @@ QString ClassDefinitionAst::dump() const
     dumpList(r, ", body=", body, ",\n  ");
     // TODO: Keywords?
     dumpList(r, ", decorator_list=", decorators);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -277,6 +332,7 @@ QString CodeAst::dump() const
     r.append("Module(");
     dumpNode(r, "name=", name);
     dumpList(r, ", body=", body, ",\n  ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -291,10 +347,24 @@ ComprehensionAst::ComprehensionAst(Ast* parent): Ast(parent, Ast::ComprehensionA
     
 }
 
+
+QString ComprehensionAst::dump() const
+{
+    QString r = "Comprehension(";
+    dumpNode(r, "target=", target);
+    dumpNode(r, ", iterator=", iterator);
+    dumpList(r, ", conditions=", conditions);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
+
 ContinueAst::ContinueAst(Ast* parent): StatementAst(parent, Ast::ContinueAstType)
 {
     
 }
+
+
 
 DeleteAst::DeleteAst(Ast* parent): StatementAst(parent, Ast::DeleteAstType)
 {
@@ -305,9 +375,11 @@ QString DeleteAst::dump() const
 {
     QString r = "Delete(";
     dumpList(r, "targets=", targets);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
+
 
 DictAst::DictAst(Ast* parent): ExpressionAst(parent, Ast::DictAstType)
 {
@@ -319,6 +391,18 @@ QString DictAst::dump() const
     QString r = "Dict(";
     dumpList(r, "keys=", keys);
     dumpList(r, ", values=", values);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
+
+QString ExceptionHandlerAst::dump() const
+{
+    QString r = "ExceptionHandler(";
+    dumpNode(r, "type=", type);
+    dumpNode(r, ", name=", name);
+    dumpList(r, ", body=", body);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -336,6 +420,7 @@ QString SliceAst::dump() const
     dumpNode(r, "lower=", lower);
     dumpNode(r, ", upper=", upper);
     dumpNode(r, ", step=", step);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -345,10 +430,30 @@ DictionaryComprehensionAst::DictionaryComprehensionAst(Ast* parent): ExpressionA
     
 }
 
+QString DictionaryComprehensionAst::dump() const
+{
+    QString r = "DictionaryComprehension(";
+    dumpNode(r, "key=", key);
+    dumpNode(r, ", value=", value);
+    dumpList(r, ", generators=", generators);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
 
 ListComprehensionAst::ListComprehensionAst(Ast* parent): ExpressionAst(parent, Ast::ListComprehensionAstType), element(nullptr)
 {
 
+}
+
+QString ListComprehensionAst::dump() const
+{
+    QString r = "ListComprehension(";
+    dumpNode(r, "element=", element);
+    dumpList(r, ", generators=", generators);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
 }
 
 ExpressionAst::ExpressionAst(Ast* parent, AstType type): Ast(parent, type), value(nullptr)
@@ -366,6 +471,7 @@ QString AssignmentExpressionAst::dump() const
     QString r = "AssignmentExpression(";
     dumpNode(r, "target=", target);
     dumpNode(r, ", value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -379,6 +485,7 @@ QString YieldFromAst::dump() const
 {
     QString r = "YieldFrom(";
     dumpNode(r, "value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -396,6 +503,7 @@ QString ForAst::dump() const
     dumpList(r, ", body=", body, ",\n    ");
     if (orelse.size())
         dumpList(r, ", orelse=", orelse, ",\n    ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -415,6 +523,7 @@ QString FunctionDefinitionAst::dump() const
         dumpList(r, ", decorator_list=", decorators);
     if (returns)
         dumpNode(r, ", returns=", returns);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -434,6 +543,7 @@ QString GlobalAst::dump() const
 {
     QString r = "Global(";
     dumpList(r, "names=", names);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -445,7 +555,11 @@ Identifier::Identifier(QString value) : Ast(nullptr, Ast::IdentifierAstType), va
 
 QString Identifier::dump() const
 {
-    return "'" + value + "'";
+    QString r = "Identifier(";
+    r.append("value='" + value + "'");
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
 }
 
 IfAst::IfAst(Ast* parent): StatementAst(parent, Ast::IfAstType), condition(nullptr)
@@ -460,6 +574,7 @@ QString IfAst::dump() const
     dumpList(r, ", body=", body, ",\n    ");
     if (orelse.size())
         dumpList(r, ", orelse=", orelse, ",\n    ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -476,6 +591,7 @@ QString IfExpressionAst::dump() const
     dumpNode(r, ", body=", body);
     if (orelse)
         dumpNode(r, ", orelse=", orelse);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -489,6 +605,7 @@ QString ImportAst::dump() const
 {
     QString r = "Import(";
     dumpList(r, "names=", names);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -503,6 +620,7 @@ QString ImportFromAst::dump() const
     QString r = "ImportFrom(";
     dumpNode(r, "module=", module);
     dumpList(r, ", names=", names);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -518,6 +636,7 @@ QString KeywordAst::dump() const
     r.append("Keyword(");
     dumpNode(r, "arg=", argumentName);
     dumpNode(r, ", value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -525,6 +644,16 @@ QString KeywordAst::dump() const
 LambdaAst::LambdaAst(Ast* parent): ExpressionAst(parent, Ast::LambdaAstType), arguments(nullptr)
 {
     
+}
+
+QString LambdaAst::dump() const
+{
+    QString r = "Lambda(";
+    dumpNode(r, "arguments=", arguments);
+    dumpNode(r, ", body=", body);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
 }
 
 ListAst::ListAst(Ast* parent): ExpressionAst(parent, Ast::ListAstType)
@@ -537,6 +666,7 @@ QString ListAst::dump() const
     QString r = "List(";
     dumpList(r, "elts=", elements);
     dumpContext(r, ", ctx=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -551,6 +681,7 @@ QString NameAst::dump() const
     QString r = "Name(";
     dumpNode(r, "id=", identifier);
     dumpContext(r, ", ctx=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -564,6 +695,7 @@ QString AwaitAst::dump() const
 {
     QString r = "AwaitAst(";
     dumpNode(r, "value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -611,6 +743,7 @@ QString RaiseAst::dump() const
     QString r;
     r.append("Raise(");
     dumpNode(r, "type=", type);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -625,6 +758,7 @@ QString ReturnAst::dump() const
     QString r;
     r.append("Return(");
     dumpNode(r, "value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -638,6 +772,7 @@ QString SetAst::dump() const
 {
     QString r = "Set(";
     dumpList(r, "elts=", elements);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -646,6 +781,17 @@ SetComprehensionAst::SetComprehensionAst(Ast* parent): ExpressionAst(parent, Ast
 {
     
 }
+
+QString SetComprehensionAst::dump() const
+{
+    QString r = "SetComprehension(";
+    dumpNode(r, "element=", element);
+    dumpList(r, ", generators=", generators);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
+
 
 StatementAst::StatementAst(Ast* parent, AstType type): Ast(parent, type)
 {
@@ -674,6 +820,7 @@ QString SubscriptAst::dump() const
     dumpNode(r, "value=", value);
     dumpNode(r, ", slice=", slice);
     dumpContext(r, ", context=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -689,6 +836,7 @@ QString StarredAst::dump() const
     r.append("Starred(");
     dumpNode(r, "value=", value);
     dumpContext(r, ", context=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -703,6 +851,7 @@ QString TupleAst::dump() const
     QString r = "Tuple(";
     dumpList(r, "elts=", elements);
     dumpContext(r, ", context=", context);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -734,6 +883,7 @@ QString UnaryOperationAst::dump() const {
         default:
             r.append("Invalid");
     }
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -753,6 +903,7 @@ QString TryAst::dump() const
         dumpList(r, ", orelse=", orelse, ",\n    ");
     if (finally.size())
         dumpList(r, ", finally=", finally, ",\n    ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -770,6 +921,7 @@ QString WhileAst::dump() const
     dumpList(r, ", body=", body, ",\n    ");
     if (orelse.size())
         dumpList(r, ", orelse=", orelse, ",\n    ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -785,6 +937,7 @@ QString WithAst::dump() const
     QString r = async ? "AsyncWith(": "With(";
     dumpList(r, ", items=", items);
     dumpList(r, ", body=", body, ",\n    ");
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -792,6 +945,16 @@ QString WithAst::dump() const
 WithItemAst::WithItemAst(Ast* parent): Ast(parent, Ast::WithItemAstType)
 {
 
+}
+
+QString WithItemAst::dump() const
+{
+    QString r = "WithItem(";
+    dumpNode(r, ", contextExpression=", optionalVars);
+    dumpNode(r, ", optionalVars=", contextExpression);
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
 }
 
 YieldAst::YieldAst(Ast* parent): ExpressionAst(parent, Ast::YieldAstType), value(nullptr)
@@ -803,6 +966,7 @@ QString YieldAst::dump() const
 {
     QString r = "Yield(";
     dumpNode(r, "value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -812,6 +976,7 @@ QString AliasAst::dump() const
     QString r = "Alias(";
     dumpNode(r, "name=", name);
     dumpNode(r, ", as=", asName);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -821,6 +986,7 @@ QString MatchAst::dump() const
     QString r = "Match(";
     dumpNode(r, "subject=", subject);
     dumpList(r, ", cases=", cases);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -832,6 +998,7 @@ QString MatchCaseAst::dump() const
     if (guard)
         dumpNode(r, ", guard=", guard);
     dumpList(r, ", body=", body);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -840,6 +1007,7 @@ QString MatchValueAst::dump() const
 {
     QString r = "MatchValue(";
     dumpNode(r, "value=", value);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -860,6 +1028,7 @@ QString MatchSingletonAst::dump() const
         default:
             r.append("value=Invalid");
     }
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -868,6 +1037,7 @@ QString MatchSequenceAst::dump() const
 {
     QString r = "MatchSequence(";
     dumpList(r, "patterns=", patterns);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -878,6 +1048,7 @@ QString MatchMappingAst::dump() const
     dumpList(r, "keys=", keys);
     dumpList(r, ", patterns=", patterns);
     dumpNode(r, ", rest=", rest);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -889,6 +1060,7 @@ QString MatchClassAst::dump() const
     dumpList(r, ", patterns=", patterns);
     dumpNode(r, ", kwd_attrs=", kwdAttrs);
     dumpList(r, ", kwd_patterns=", kwdPatterns);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -897,6 +1069,7 @@ QString MatchStarAst::dump() const
 {
     QString r = "MatchStar(";
     dumpNode(r, "name=", name);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -907,6 +1080,7 @@ QString MatchAsAst::dump() const
     dumpNode(r, "name=", name);
     if (pattern)
         dumpNode(r, ", pattern=", pattern);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
@@ -914,7 +1088,8 @@ QString MatchAsAst::dump() const
 QString MatchOrAst::dump() const
 {
     QString r = "MatchOr(";
-    dumpList(r, ", patterns=", patterns);
+    dumpList(r, "patterns=", patterns);
+    dumpRange(r, ", range=", this);
     r.append(")");
     return r;
 }
