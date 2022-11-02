@@ -96,6 +96,9 @@ void PyEnamlTest::testStatements_data()
     QTest::newRow("assign_int") << "a = 3";
     QTest::newRow("enamldef") << "enamldef A(B):\n pass";
     QTest::newRow("attr") << "enamldef A(B):\n attr x";
+    QTest::newRow("alias") << "enamldef A(B):\n alias x: y";
+    QTest::newRow("alias_chain") << "enamldef A(B):\n alias x: y.z";
+    QTest::newRow("alias_chain_triple") << "enamldef A(B):\n alias x: a.b.c";
     QTest::newRow("two_attr") << "enamldef A(B):\n attr x\n attr y";
     QTest::newRow("attr_default") << "enamldef A(B):\n attr x = 1";
     QTest::newRow("attr_type_default") << "enamldef A(B):\n attr x: int = 1";
@@ -122,8 +125,20 @@ public:
     void visitName(NameAst* node) override {
         QVERIFY(! node->identifier->value.isNull());
         if (node->identifier->value == searchingForIdentifier) {
-            found = true;
-            QCOMPARE( node->identifier->range(),  searchingForRange);
+            // HACK: Ignore implicit self = Class() calls
+            bool ignore = false;
+            if (auto call = dynamic_cast<Python::CallAst*>(node->parent))
+            {
+                if (auto assignment = dynamic_cast<Python::AssignmentAst*>(call->parent))
+                {
+                    if (auto target = dynamic_cast<Python::NameAst*>(assignment->targets.at(0)))
+                        ignore = target->identifier->value == "self";
+                }
+            }
+            if (!ignore) {
+                found = true;
+                QCOMPARE( node->identifier->range(),  searchingForRange);
+            }
         }
         AstDefaultVisitor::visitName(node);
     };
@@ -177,16 +192,21 @@ void PyEnamlTest::testRanges_data()
 
     // NOTE: endCol is inclusive (aka len - 1)
     QTest::newRow("enamldef") << "enamldef Main(Window):\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
+    QTest::newRow("enamldef_with_ident") << "enamldef Main(Window): main:\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
+    QTest::newRow("enamldef_ident") << "enamldef Main(Window): main:\n pass" << "main" << KTextEditor::Range(0, 23, 0, 26);
+    QTest::newRow("enamldef_self") << "enamldef Main(Window):\n pass" << "self" << KTextEditor::Range(0, 21, 0, 21);
+    QTest::newRow("enamldef_ident_self") << "enamldef Main(Window): main:\n pass" << "self" << KTextEditor::Range(0, 21, 0, 21);
     QTest::newRow("func") << "enamldef Main(Window):\n func submit():\n  pass" << "submit" << KTextEditor::Range(1, 6, 1, 11);
     QTest::newRow("async_func") << "enamldef Main(Window):\n async func submit():\n  pass" << "submit" << KTextEditor::Range(1, 12, 1, 17);
     QTest::newRow("func_override") << "enamldef A(B):\n foo=>():\n  pass" << "foo" << KTextEditor::Range(1, 1, 1, 3);
     QTest::newRow("async_func_override") << "enamldef A(B):\n  async foo => ():\n   pass" << "foo" << KTextEditor::Range(1, 8, 1, 10);
     QTest::newRow("attr") << "enamldef Main(Window):\n attr x: int = 1" << "x" << KTextEditor::Range(1, 6, 1, 6);
+    QTest::newRow("alias") << "enamldef Main(Window):\n alias x: y" << "x" << KTextEditor::Range(1, 7, 1, 7);
     QTest::newRow("binding") << "enamldef Main(Window):\n x = 1" << "x" << KTextEditor::Range(1, 1, 1, 1);
     QTest::newRow("binding_value") << "enamldef Main(Window):\n x = y" << "y" << KTextEditor::Range(1, 5, 1, 5);
     QTest::newRow("childdef") << "enamldef Main(Window):\n Label:\n  pass" << "Label_1" << KTextEditor::Range(1, 1, 1, 5);
     QTest::newRow("childdef_func") << "enamldef Main(Window):\n Label:\n  func foo():\n    pass" << "foo" << KTextEditor::Range(2, 7, 2, 9);
-    QTest::newRow("childdef_intented") << "enamldef Main(Window):\n    Label:\n        pass" << "Label_1" << KTextEditor::Range(1, 4, 1, 8);
+    QTest::newRow("childdef_indented") << "enamldef Main(Window):\n    Label:\n        pass" << "Label_1" << KTextEditor::Range(1, 4, 1, 8);
     QTest::newRow("nested_childdef") << "enamldef Main(Window):\n Container:\n  Label:\n   pass" << "Label_2" << KTextEditor::Range(2, 2, 2, 6);
     QTest::newRow("enamldef_then_mod") << "enamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(2, 4, 2, 6);
     QTest::newRow("mod_enamldef_mod") << "from x import Window\nenamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(3, 4, 3, 6);
