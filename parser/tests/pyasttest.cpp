@@ -54,8 +54,9 @@ void PyAstTest::initShell()
 CodeAst::Ptr PyAstTest::getAst(QString code)
 {
     QSharedPointer<AstBuilder> builder(new AstBuilder);
+    qDebug() << "code: " << code;
     CodeAst::Ptr result = builder->parse(QUrl("<empty>"), code);
-    qDebug() << result->dump();
+    qDebug() << "ast: " << result->dump();
     return result;
 }
 
