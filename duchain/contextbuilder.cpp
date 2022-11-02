@@ -356,7 +356,7 @@ QPair<QUrl, QStringList> ContextBuilder::findModulePath(const QString& name, con
 
             // we can only parse those, so we don't care about anything else for now.
             // Any C modules (.so, .dll) will be ignored, and highlighted as "not found". TODO fix this
-            static QStringList valid_extensions{".py", ".pyx"};
+            static QStringList valid_extensions{".py", ".pyx", ".enaml"};
             foreach ( const auto& extension, valid_extensions ) {
                 QFile sourcefile(testFilename + extension);
                 if ( ! dir_exists || leftNameComponents.isEmpty() ) {
