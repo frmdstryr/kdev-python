@@ -8,6 +8,7 @@ set(parser_STAT_SRCS
     python_asttransformer.cpp
     enaml_asttransformer.cpp
     enaml_rangefixvisitor.cpp
+    enaml_ast.cpp
     cython_asttransformer.cpp
     rangefixvisitor.cpp
 )
