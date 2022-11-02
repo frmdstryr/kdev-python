@@ -6,19 +6,20 @@ namespace Enaml {
 class KDEVPYTHONPARSER_EXPORT EnamlDefAst: public Python::ClassDefinitionAst {
 public:
     EnamlDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
-    Python::Identifier* identifier;
+    Python::Identifier* identifier = nullptr;
+    QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT ChildDefAst: public Python::ClassDefinitionAst {
 public:
     ChildDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
-    Python::Identifier* identifier;
+    Python::Identifier* identifier = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT TemplateAst: public Python::ClassDefinitionAst {
 public:
     TemplateAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
-    Python::Identifier* identifier;
+    Python::Identifier* identifier = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT StorageExprAst: public Python::AnnotationAssignmentAst {
@@ -32,6 +33,7 @@ public:
     };
 
     Kind kind = Invalid;
+    QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT BindingAst: public Python::AnnotationAssignmentAst {
@@ -46,6 +48,13 @@ public:
         Invalid = -1,
     };
     Op op = Invalid;
+    QString dump() const override;
+};
+
+class KDEVPYTHONPARSER_EXPORT AliasAst: public Python::AnnotationAssignmentAst {
+public:
+    AliasAst(Python::Ast* parent): Python::AnnotationAssignmentAst(parent) {};
+    QString dump() const override;
 };
 
 
