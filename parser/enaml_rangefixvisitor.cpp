@@ -151,7 +151,7 @@ void RangeFixVisitor::visitStorageExpr(StorageExprAst* node)
 }
 
 void RangeFixVisitor::visitEnamlAlias(AliasAst* node) {
-    const int startCol = firstNonSpace(node, indexOf(node->startCol, "alias") + 5);
+    const int startCol = firstNonSpace(node, indexOf(node->startLine, "alias") + 5);
     if (startCol > 0)
     {
         const int targetLength = node->target->endCol - node->target->startCol;
@@ -163,15 +163,17 @@ void RangeFixVisitor::visitEnamlAlias(AliasAst* node) {
             name->identifier->endCol = startCol + targetLength;
         }
 
+        const int colonPos = indexOf(node->startCol, ":");
+        const int valueStartCol = (colonPos > 0) ? firstNonSpace(node, colonPos + 1): startCol;
         if (auto value = dynamic_cast<Python::NameAst*>(node->value))
         {
-            const int colonPos = indexOf(node->startCol, ":");
             const int valueLength = node->value->endCol - node->value->startCol;
-            const int valueStartCol = (colonPos > 0) ? firstNonSpace(node, colonPos + 1): startCol;
             value->startCol = valueStartCol;
             value->endCol = valueStartCol + valueLength;
             value->identifier->startCol = valueStartCol;
             value->identifier->endCol = valueStartCol + valueLength;
+        } else if (auto attr = dynamic_cast<Python::AttributeAst*>(node->value)) {
+            // TODO: This
         }
     }
     AstDefaultVisitor::visitAnnotationAssignment(node);
