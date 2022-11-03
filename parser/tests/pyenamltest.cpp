@@ -195,20 +195,22 @@ void PyEnamlTest::testRanges_data()
     QTest::newRow("enamldef_base") << "enamldef Main(Window):\n pass" << "Window" << KTextEditor::Range(0, 14, 0, 19);
     QTest::newRow("enamldef_with_ident") << "enamldef Main(Window): main:\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
     QTest::newRow("enamldef_ident") << "enamldef Main(Window): main:\n pass" << "main" << KTextEditor::Range(0, 23, 0, 26);
-    QTest::newRow("enamldef_self") << "enamldef Main(Window):\n pass" << "self" << KTextEditor::Range(0, 21, 0, 21);
-    QTest::newRow("enamldef_ident_self") << "enamldef Main(Window): main:\n pass" << "self" << KTextEditor::Range(0, 21, 0, 21);
     QTest::newRow("func") << "enamldef Main(Window):\n func submit():\n  pass" << "submit" << KTextEditor::Range(1, 6, 1, 11);
     QTest::newRow("async_func") << "enamldef Main(Window):\n async func submit():\n  pass" << "submit" << KTextEditor::Range(1, 12, 1, 17);
     QTest::newRow("func_override") << "enamldef A(B):\n foo=>():\n  pass" << "foo" << KTextEditor::Range(1, 1, 1, 3);
     QTest::newRow("async_func_override") << "enamldef A(B):\n  async foo => ():\n   pass" << "foo" << KTextEditor::Range(1, 8, 1, 10);
     QTest::newRow("attr") << "enamldef Main(Window):\n attr x: int = 1" << "x" << KTextEditor::Range(1, 6, 1, 6);
-    QTest::newRow("alias") << "enamldef Main(Window):\n alias x: y" << "x" << KTextEditor::Range(1, 7, 1, 7);
+    QTest::newRow("alias") << "enamldef Main(Window):\n alias x" << "x" << KTextEditor::Range(1, 7, 1, 7);
+    QTest::newRow("alias_with_target") << "enamldef Main(Window):\n alias x: y" << "x" << KTextEditor::Range(1, 7, 1, 7);
+    QTest::newRow("alias_target") << "enamldef Main(Window):\n alias x: y" << "y" << KTextEditor::Range(1, 10, 1, 10);
     QTest::newRow("binding") << "enamldef Main(Window):\n x = 1" << "x" << KTextEditor::Range(1, 1, 1, 1);
     QTest::newRow("binding_value") << "enamldef Main(Window):\n x = y" << "y" << KTextEditor::Range(1, 5, 1, 5);
-    QTest::newRow("childdef") << "enamldef Main(Window):\n Label:\n  pass" << "Label_1" << KTextEditor::Range(1, 1, 1, 5);
+    QTest::newRow("binding_implicit_block_func") << "enamldef Main(Window):\n x ::\n  print(change)" << "x_expr_2" << KTextEditor::Range(1, 1, 1, 1);
+    QTest::newRow("childdef") << "enamldef Main(Window):\n Label:\n  pass" << "Label_2" << KTextEditor::Range(1, 1, 1, 5);
+    QTest::newRow("childdef_ident") << "enamldef Main(Window):\n Label: lbl:\n  pass" << "lbl" << KTextEditor::Range(1, 8, 1, 10);
     QTest::newRow("childdef_func") << "enamldef Main(Window):\n Label:\n  func foo():\n    pass" << "foo" << KTextEditor::Range(2, 7, 2, 9);
-    QTest::newRow("childdef_indented") << "enamldef Main(Window):\n    Label:\n        pass" << "Label_1" << KTextEditor::Range(1, 4, 1, 8);
-    QTest::newRow("nested_childdef") << "enamldef Main(Window):\n Container:\n  Label:\n   pass" << "Label_2" << KTextEditor::Range(2, 2, 2, 6);
+    QTest::newRow("childdef_indented") << "enamldef Main(Window):\n    Label:\n        pass" << "Label_2" << KTextEditor::Range(1, 4, 1, 8);
+    QTest::newRow("nested_childdef") << "enamldef Main(Window):\n Container:\n  Label:\n   pass" << "Label_3" << KTextEditor::Range(2, 2, 2, 6);
     QTest::newRow("enamldef_then_mod") << "enamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(2, 4, 2, 6);
     QTest::newRow("mod_enamldef_mod") << "from x import Window\nenamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(3, 4, 3, 6);
 }
