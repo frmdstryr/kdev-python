@@ -113,21 +113,20 @@ QList<Ast*> AstTransformer::visitEnamlDefBody(PyObject* node, Ast* parent)
     QList<Ast*> nodelist;
     if (!node || node == Py_None) return nodelist;
 
-    Python::Identifier* identifier = nullptr;
-    Python::Identifier* class_name = nullptr;
-    bool root = false;
-    if (auto enamldef = dynamic_cast<EnamlDefAst*>(parent))
-    {
-        identifier = enamldef->identifier;
-        class_name = enamldef->name;
-        root = true;
-    }
-    else if (auto childdef = dynamic_cast<ChildDefAst*>(parent))
-    {
-        identifier = childdef->identifier;
-        class_name = static_cast<Python::NameAst*>(childdef->baseClasses.at(0))->identifier;
-    }
-
+    // Python::Identifier* identifier = nullptr;
+    // Python::Identifier* class_name = nullptr;
+    // bool root = false;
+    // if (auto enamldef = dynamic_cast<EnamlDefAst*>(parent))
+    // {
+    //     identifier = enamldef->identifier;
+    //     class_name = enamldef->name;
+    //     root = true;
+    // }
+    // else if (auto childdef = dynamic_cast<ChildDefAst*>(parent))
+    // {
+    //     identifier = childdef->identifier;
+    //     class_name = static_cast<Python::NameAst*>(childdef->baseClasses.at(0))->identifier;
+    // }
     // {
     //     // self = EnamlDefCls()
     //     auto assignment = new Python::AssignmentAst(parent);
@@ -235,22 +234,26 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
     QList<Ast*> result;
     if (!node || node == Py_None) return result;
     // qDebug() << "visit enamldef item: " << PyUnicodeObjectToQString(PyObject_Str(node)) << "parent" << parent;
-    int lineno = tline(getattr<int>(node, "lineno"));
+    const int lineno = tline(getattr<int>(node, "lineno"));
+    const int end_lineno = tline(getattr<int>(node, "end_lineno"));
+    const int col_offset = getattr<int>(node, "col_offset");
+    const int end_col_offset = getattr<int>(node, "end_col_offset");
+
     if (PyObject_IsInstance(node, enaml.ast_ChildDef)) {
         // qDebug() << "childdef";
         auto v = new Enaml::ChildDefAst(parent);
+        v->startLine = lineno;
+        v->startCol = col_offset;
+        v->endCol = end_col_offset;
+        v->endLine = end_lineno;
+
         QString name = getattr<QString>(node, "typename");
         if ( name.size() ) {
-            v->name = new Python::Identifier(name + "_" + QString::fromLatin1("%1").arg(lineno));
-            v->name->startCol = getattr<int>(node, "col_offset"); // Fixed by range fix visitor
+            v->name = new Python::Identifier(name + "_" + QString::fromLatin1("%1").arg(lineno+1));
+            v->name->startCol = col_offset; // Fixed by range fix visitor
             v->name->startLine = lineno;
             v->name->endCol = v->name->startCol + name.size() - 1;
-            v->name->endLine = v->name->startLine;
-
-            v->startCol = v->name->startCol;
-            v->startLine = v->name->startLine;
-            v->endCol = v->name->endCol;
-            v->endLine = v->name->endLine;
+            v->name->endLine = lineno;
         }
         else {
             v->name = nullptr;
@@ -262,10 +265,10 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             QString base_name = getattr<QString>(node, "typename");
             base->identifier = new Python::Identifier(base_name);
             base->context = Python::ExpressionAst::Context::Load;
-            base->identifier->startCol = v->endCol + 2;
+            base->identifier->startCol = col_offset;
             base->identifier->endCol = base->identifier->startCol + base_name.size() - 1;
-            base->identifier->startLine = v->startLine;
-            base->identifier->endLine = v->endLine;
+            base->identifier->startLine = lineno;
+            base->identifier->endLine = lineno;
             base->startCol = base->identifier->startCol;
             base->endCol = base->identifier->endCol;
             base->startLine = base->identifier->startLine;
@@ -278,8 +281,8 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             if (identifier.size())
             {
                 v->identifier = new Python::Identifier(identifier);
-                v->identifier->startLine = v->startLine;
-                v->identifier->endLine = v->endLine;
+                v->identifier->startLine = lineno;
+                v->identifier->endLine = lineno;
                 v->identifier->startCol = v->baseClasses.at(0)->endCol + 1;
                 v->identifier->endCol = v->identifier->startCol + identifier.size() - 1;
             }
@@ -296,8 +299,14 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
 
     }
     else if (PyObject_IsInstance(node, enaml.ast_Binding)) {
+        // eg: x := y
         // qDebug() << "binding";
         auto v = new  Enaml::BindingAst(parent);
+        v->startLine = lineno;
+        v->startCol = col_offset;
+        v->endCol = end_col_offset;
+        v->endLine = end_lineno;
+
         QString name = getattr<QString>(node, "name");
         {
             //auto target = newSelfAttr(lineno, v, name);
@@ -305,18 +314,14 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             target->identifier = new Python::Identifier(name);
             // TODO: Depends on expr op
             target->context = Python::ExpressionAst::Context::Store;
-            target->identifier->startLine = tline(getattr<int>(node, "lineno"));
-            target->identifier->startCol = getattr<int>(node, "col_offset");
-            target->identifier->endLine = target->identifier->startLine;
+            target->identifier->startLine = lineno;
+            target->identifier->startCol = col_offset;
+            target->identifier->endLine = lineno;
             target->identifier->endCol = target->identifier->startCol + name.size() - 1;
             target->startLine = target->identifier->startLine;
             target->startCol = target->identifier->startCol;
             target->endLine = target->identifier->endLine;
             target->endCol = target->identifier->endCol;
-            v->startLine = target->startLine;
-            v->startCol = target->startCol;
-            v->endLine = target->endLine;
-            v->endCol = target->endCol;
             // auto target = new Python::AttributeAst(v);
             // target->context = Python::ExpressionAst::Store;
             // target->startLine = tline(getattr<int>(node, "lineno"));
@@ -344,36 +349,45 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
                 v->op = BindingAst::Op::Notification;
 
             // qDebug() << "  op " << op;
-            if (op == "=" || op == "<<" || op == ":=")
-            {
-                PyObjectRef expr_value = getattr<PyObjectRef>(expr, "value");
-                if (PyObject_IsInstance(expr_value, enaml.ast_PythonModule)) {
-                    // Enaml generates a function named "f" for expression blocks
-                    auto body = visitPythonModuleNode(expr_value, parent);
-                    Q_ASSERT(body.size() == 1);
-                    auto func = static_cast<Python::FunctionDefinitionAst*>(body.at(0));
-                    Q_ASSERT(func);
+            PyObjectRef expr_value = getattr<PyObjectRef>(expr, "value");
+            if (PyObject_IsInstance(expr_value, enaml.ast_PythonModule)) {
+                // Enaml generates a function named "f" for expression blocks
+                auto body = visitPythonModuleNode(expr_value, parent);
+                Q_ASSERT(body.size() == 1);
+                auto func = static_cast<Python::FunctionDefinitionAst*>(body.at(0));
+                Q_ASSERT(func);
 
-                    func->name->value = "_" + name + "_expr_" + QString::fromLatin1("%1").arg(lineno);
-                    func->startCol = getattr<int>(node, "col_offset") + name.size();
-                    func->endCol = func->startCol + 2;
-                    func->startLine = v->startLine;
-                    func->endLine = v->startLine;
-                    result.append(func);
+                func->startLine = lineno;
+                func->name->value = name + "_expr_" + QString::fromLatin1("%1").arg(lineno+1);
+                func->name->startLine = lineno;
+                func->name->endLine = lineno;
+                func->name->startCol = col_offset;
+                func->name->endCol = func->name->startCol + name.size() - 1;
+                result.append(func);
 
-                    // Generate call
-                    auto target = newSelfAttr(lineno, parent, func->name->value);
-                    auto call = new Python::CallAst(v);
-                    call->function = target;
-                    call->startCol = func->startCol;
-                    call->endCol = func->endCol;
-                    call->startLine = v->startLine;
-                    call->endLine = v->startLine;
-                    v->value = call;
-                }
-                else {
-                    v->value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
-                }
+                // Generate call
+                //auto target = newSelfAttr(lineno, parent, func->name->value);
+                auto call = new Python::CallAst(v);
+                auto target = new Python::NameAst(call);
+                target->identifier = new Python::Identifier(func->name->value);
+                target->identifier->startCol = func->name->startCol;
+                target->identifier->endCol = func->name->endCol;
+                target->identifier->startLine = func->name->startLine;
+                target->identifier->endLine = func->name->endLine;
+                target->startCol = target->identifier->startCol;
+                target->endCol = target->identifier->endCol;
+                target->startLine = target->identifier->startLine;
+                target->endLine = target->identifier->endLine;
+
+                call->function = target;
+                call->startCol = func->name->endCol + 1;
+                call->endCol = func->name->endCol + 2;
+                call->startLine = lineno;
+                call->endLine = lineno;
+                v->value = call;
+            }
+            else {
+                v->value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
             }
         }
         //updateRanges(v);
@@ -390,23 +404,23 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
     else if (PyObject_IsInstance(node, enaml.ast_AliasExpr)) {
         // qDebug() << "aliasexpr";
         auto* v = new  Enaml::AliasAst(parent);
+        v->startLine = lineno;
+        v->startCol = col_offset;
+        v->endCol = end_col_offset;
+        v->endLine = end_lineno;
         {
             QString name = getattr<QString>(node, "name");
             auto target = new Python::NameAst(v);
             target->identifier = new Python::Identifier(name);
             target->context = Python::ExpressionAst::Context::Store;
-            target->identifier->startLine = tline(getattr<int>(node, "lineno"));
-            target->identifier->startCol = getattr<int>(node, "col_offset");
-            target->identifier->endLine = target->identifier->startLine;
+            target->identifier->startLine = lineno;
+            target->identifier->startCol = col_offset;
+            target->identifier->endLine = lineno;
             target->identifier->endCol = target->identifier->startCol + name.size() - 1;
             target->startLine = target->identifier->startLine;
             target->startCol = target->identifier->startCol;
             target->endLine = target->identifier->endLine;
             target->endCol = target->identifier->endCol;
-            v->startLine = target->startLine;
-            v->startCol = target->startCol;
-            v->endLine = target->endLine;
-            v->endCol = target->endCol;
             v->target = target;
         }
         QString target = getattr<QString>(node, "target");
@@ -423,7 +437,6 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             value->startCol = value->identifier->startCol;
             value->endLine = value->identifier->endLine;
             value->endCol = value->identifier->endCol;
-            v->endCol = value->endCol;
             v->value = value;
         }
         else {
@@ -431,7 +444,6 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             Q_ASSERT(PyTuple_Check(chain));
             Python::AttributeAst* attr = nullptr;
             Python::Ast* value_parent = v;
-            const int startLine = tline(getattr<int>(node, "lineno"));
             for (int i=PyTuple_Size(chain)-1; i >= 0; i--) {
                 PyObject* item = PyTuple_GET_ITEM(chain, i); // borrowed
                 Py_INCREF(item); // Next line does a decref
@@ -443,12 +455,12 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
                     attr->attribute = new Python::Identifier(key);
                     attr->attribute->startCol = getattr<int>(item, "col_offset");
                     attr->attribute->endCol = attr->attribute->startCol + key.size() - 1;
-                    attr->attribute->startLine = startLine;
-                    attr->attribute->endLine = startLine;
+                    attr->attribute->startLine = lineno;
+                    attr->attribute->endLine = lineno;
                     attr->startCol = attr->attribute->startCol;
                     attr->endCol = attr->attribute->endCol;
-                    attr->startLine = startLine;
-                    attr->endLine = startLine;
+                    attr->startLine = lineno;
+                    attr->endLine = lineno;
                     value_parent = attr;
                 }
                 else {
@@ -457,10 +469,10 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
                     value->identifier = new Python::Identifier(key);
                     value->identifier->startCol = getattr<int>(item, "col_offset");
                     value->identifier->endCol = attr->attribute->startCol + key.size() - 1;
-                    value->identifier->startLine = startLine;
-                    value->identifier->endLine = startLine;
-                    value->startLine = startLine;
-                    value->endLine = startLine;
+                    value->identifier->startLine = lineno;
+                    value->identifier->endLine = lineno;
+                    value->startLine = lineno;
+                    value->endLine = lineno;
 
                     attr->value = value;
                 }
@@ -477,6 +489,10 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
     else if (PyObject_IsInstance(node, enaml.ast_StorageExpr)) {
         // qDebug() << "storagexpr";
         auto v = new  Enaml::StorageExprAst(parent);
+        v->startLine = lineno;
+        v->startCol = col_offset;
+        v->endCol = end_col_offset;
+        v->endLine = end_lineno;
         //auto v = new  Python::AnnotationAssignmentAst(parent);
 
         QString kind = getattr<QString>(node, "kind");
@@ -491,28 +507,23 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
         auto target = new Python::NameAst(v);
         target->identifier = new Python::Identifier(name);
         target->context = Python::ExpressionAst::Context::Store;
-        target->identifier->startLine = tline(getattr<int>(node, "lineno"));
-        target->identifier->startCol = getattr<int>(node, "col_offset");
-        target->identifier->endLine = target->identifier->startLine;
+        target->identifier->startLine = lineno;
+        target->identifier->startCol = col_offset;
+        target->identifier->endLine = lineno;
         target->identifier->endCol = target->identifier->startCol + name.size() - 1;
         target->startLine = target->identifier->startLine;
         target->startCol = target->identifier->startCol;
         target->endLine = target->identifier->endLine;
         target->endCol = target->identifier->endCol;
-        v->startLine = target->startLine;
-        v->startCol = target->startCol;
-        v->endLine = target->endLine;
-        v->endCol = target->endCol;
 
         // Build value
         Python::ExpressionAst* value = nullptr;
         PyObjectRef expr = getattr<PyObjectRef>(node, "expr");
 
-
-        if (expr != Py_None && kind == "attr")
+        if (expr != Py_None)
         {
             QString op = getattr<QString>(expr, "operator");
-            if (op == "=" || op == "<<" || op == ":=")
+            if (op == "=" || op == "::")
             {
                 PyObjectRef expr_value = getattr<PyObjectRef>(expr, "value");
                 value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
@@ -533,24 +544,11 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
         //     v->annotation = static_cast<Python::ExpressionAst*>(visitExprNode(tp, v));
         v->target = target;
         v->value = value;
-        updateRanges(v);
         result.append(v);
     }
     else {
         qWarning() << "Unhandled enaml item" << Python::PyUnicodeObjectToQString(PyObject_Str(node));
     }
-
-    // if ( ! ranges_copied ) {
-    //     result->startCol = 0;
-    //     result->endCol = result->startCol;
-    //     result->startLine = tline(getattr<int>(node, "lineno"));
-    //     result->endLine = result->startLine;
-    //     result->hasUsefulRangeInformation = true;
-    // }
-    // else {
-    //     result->hasUsefulRangeInformation = true;
-    // }
-    // updateRanges(result);
 
     return result;
 }
