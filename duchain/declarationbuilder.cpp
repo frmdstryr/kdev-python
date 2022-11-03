@@ -38,6 +38,7 @@
 
 #include <QDebug>
 #include "duchaindebug.h"
+#include "enaml_ast.h"
 
 #include <functional>
 
@@ -1511,6 +1512,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
     dec->setStatic(false);
     dec->setClassMethod(false);
     dec->setProperty(false);
+    dec->setClosure(false);
     foreach ( auto decorator, node->decorators) {
         visitNode(decorator);
         switch (decorator->astType) {
@@ -1535,6 +1537,13 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
           default: {}
         }
     }
+
+    if (dynamic_cast<Enaml::EnamlDefAst*>(node->parent) ||
+        dynamic_cast<Enaml::ChildDefAst*>(node->parent))
+    {
+        dec->setClosure(true);
+    }
+
     visitFunctionArguments(node);
     visitFunctionBody(node);
     lock.lock();
@@ -1563,7 +1572,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         dec->setType(type);
     }
 
-    if ( ! dec->isStatic() ) {
+    if ( ! dec->isStatic()  && ! dec->isClosure() ) {
         DUContext* args = DUChainUtils::argumentContext(dec);
         if ( args )  {
             QVector<Declaration*> parameters = args->localDeclarations();

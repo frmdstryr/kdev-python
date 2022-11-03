@@ -22,6 +22,7 @@ public:
         , m_isStatic(false)
         , m_isClassMethod(false)
         , m_isProperty(false)
+        , m_isClosure(false)
         , m_vararg(-1)
         , m_kwarg(-1) {}
 
@@ -30,6 +31,7 @@ public:
         , m_isStatic(rhs.m_isStatic)
         , m_isClassMethod(rhs.m_isClassMethod)
         , m_isProperty(rhs.m_isProperty)
+        , m_isClosure(rhs.m_isClosure)
         , m_vararg(rhs.m_vararg)
         , m_kwarg(rhs.m_kwarg) {}
 
@@ -38,6 +40,7 @@ public:
     bool m_isStatic: 1;
     bool m_isClassMethod: 1;
     bool m_isProperty: 1; //TODO real property declarations
+    bool m_isClosure: 1;
     short m_vararg;
     short m_kwarg;
 };
@@ -92,6 +95,14 @@ public:
 
     inline void setProperty(bool isProperty) {
         d_func_dynamic()->m_isProperty = isProperty;
+    }
+
+    inline bool isClosure() const {
+        return d_func()->m_isClosure;
+    }
+
+    inline void setClosure(bool isClosure) {
+        d_func_dynamic()->m_isClosure = isClosure;
     }
 
     typedef KDevelop::DUChainPointer<FunctionDeclaration> Ptr;
