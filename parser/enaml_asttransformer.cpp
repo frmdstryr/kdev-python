@@ -76,7 +76,7 @@ Ast* AstTransformer::visitEnamlDefNode(PyObject* node, Ast* parent)
         QString base_name = getattr<QString>(node, "base");
         base->identifier = new Python::Identifier(base_name);
         base->context = Python::ExpressionAst::Context::Load;
-        base->identifier->startCol = v->startCol + 2;
+        base->identifier->startCol = v->endCol + 2;
         base->identifier->endCol = base->identifier->startCol + base_name.size() - 1;
         base->identifier->startLine = v->startLine;
         base->identifier->endLine = v->endLine;
