@@ -720,14 +720,14 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
         if ( path.endsWith(initFile) ) {
             // if the __init__ file is imported, import all the other files in that directory as well
             QDir dir(path.left(path.size() - initFile.size()));
-            dir.setNameFilters({"*.py"});
+            dir.setNameFilters({"*.py", "*.enaml"});
             dir.setFilter(QDir::Files);
             auto files = dir.entryList();
             foreach ( const auto& file, files ) {
                 if ( file == QStringLiteral("__init__.py") ) {
                     continue;
                 }
-                const auto filePath = declarationName.split(".") << file.left(file.lastIndexOf(".py"));
+                const auto filePath = declarationName.split(".") << file.left(file.lastIndexOf("."));
                 const auto fileUrl = QUrl::fromLocalFile(dir.path() + "/" + file);
                 ReferencedTopDUContext fileContext;
                 {
