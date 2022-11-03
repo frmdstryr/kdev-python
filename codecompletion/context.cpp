@@ -822,12 +822,16 @@ QList<CompletionTreeItemPointer> PythonCodeCompletionContext::findIncludeItems(I
         }
     }
     else {
-        QFileInfo file(item.directory.path(), item.remainingIdentifiers.first() + ".py");
-        item.remainingIdentifiers.removeFirst();
-        qCDebug(KDEV_PYTHON_CODECOMPLETION) << " CHECK:" << file.absoluteFilePath();
-        if ( file.exists() ) {
-            sourceFile = file.absoluteFilePath();
+        static QStringList valid_extensions{".py", ".pyx", ".enaml"};
+        foreach ( const auto& extension, valid_extensions ) {
+            QFileInfo file(item.directory.path(), item.remainingIdentifiers.first() + extension);
+            qCDebug(KDEV_PYTHON_CODECOMPLETION) << " CHECK:" << file.absoluteFilePath();
+            if ( file.exists() ) {
+                sourceFile = file.absoluteFilePath();
+                break;
+            }
         }
+        item.remainingIdentifiers.removeFirst();
     }
     
     if ( ! sourceFile.isEmpty() ) {
@@ -851,11 +855,12 @@ QList<CompletionTreeItemPointer> PythonCodeCompletionContext::findIncludeItems(I
         foreach ( QFileInfo file, contents ) {
             qCDebug(KDEV_PYTHON_CODECOMPLETION) << " > CONTENT:" << file.absolutePath() << file.fileName();
             if ( file.isFile() ) {
-                if ( file.fileName().endsWith(".py") || file.fileName().endsWith(".so") ) {
+                if ( file.fileName().endsWith(".py") || file.fileName().endsWith(".so") || file.fileName().endsWith(".enaml")) {
                     IncludeItem fileInclude;
                     fileInclude.basePath = item.directory;
                     fileInclude.isDirectory = false;
-                    fileInclude.name = file.fileName().mid(0, file.fileName().length() - 3); // remove ".py"
+                    const int extLen = file.fileName().endsWith(".enaml") ? 6 : 3;
+                    fileInclude.name = file.fileName().mid(0, file.fileName().length() - extLen); // remove extension
                     ImportFileItem* import = new ImportFileItem(fileInclude);
                     import->moduleName = fileInclude.name;
                     items << CompletionTreeItemPointer(import);
