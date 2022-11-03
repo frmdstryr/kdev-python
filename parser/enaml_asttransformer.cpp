@@ -390,11 +390,101 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
                 v->value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
             }
         }
-        //updateRanges(v);
         result.append(v);
     }
     else if (PyObject_IsInstance(node, enaml.ast_ExBinding)) {
         // qDebug() << "exbinding";
+        // eg: foo.x := y
+        auto v = new  Enaml::ExBindingAst(parent);
+        v->startLine = lineno;
+        v->startCol = col_offset;
+        v->endCol = end_col_offset;
+        v->endLine = end_lineno;
+
+        {
+            PyObject* chain = getattr<PyObjectRef>(node, "chain");
+            Q_ASSERT(PyTuple_Check(chain));
+            Q_ASSERT(PyTuple_Size(chain) > 0);
+            PyObject* first = PyTuple_GET_ITEM(chain, 0);
+            Py_INCREF(first);
+            QString name = PyUnicodeObjectToQString(first);
+            auto target = new Python::NameAst(v);
+            target->identifier = new Python::Identifier(name);
+            target->context = Python::ExpressionAst::Context::Load;
+            target->identifier->startLine = lineno;
+            target->identifier->startCol = col_offset;
+            target->identifier->endLine = lineno;
+            target->identifier->endCol = target->identifier->startCol + name.size() - 1;
+            target->startLine = target->identifier->startLine;
+            target->startCol = target->identifier->startCol;
+            target->endLine = target->identifier->endLine;
+            target->endCol = target->identifier->endCol;
+            v->target = buildAttrChain(chain, target, Python::ExpressionAst::Context::Store, 1);
+            Py_DECREF(first);
+            Py_DECREF(chain);
+
+        }
+        {
+            PyObjectRef expr = getattr<PyObjectRef>(node, "expr");
+            Q_ASSERT(expr && expr != Py_None);
+            QString op = getattr<QString>(expr, "operator");
+            if (op == "=")
+                v->op = BindingAst::Op::Assignment;
+            else if (op == ":=")
+                v->op = BindingAst::Op::Delegation;
+            else if (op == "<<")
+                v->op = BindingAst::Op::Subscription;
+            else if (op == ">>")
+                v->op = BindingAst::Op::Update;
+            else if (op == "::")
+                v->op = BindingAst::Op::Notification;
+
+            auto attr = static_cast<Python::AttributeAst*>(v->target);
+            QString name = attr->attribute->value;
+
+            // qDebug() << "  op " << op;
+            PyObjectRef expr_value = getattr<PyObjectRef>(expr, "value");
+            if (PyObject_IsInstance(expr_value, enaml.ast_PythonModule)) {
+                // Enaml generates a function named "f" for expression blocks
+                auto body = visitPythonModuleNode(expr_value, parent);
+                Q_ASSERT(body.size() == 1);
+                auto func = static_cast<Python::FunctionDefinitionAst*>(body.at(0));
+                Q_ASSERT(func);
+
+                func->startLine = lineno;
+                func->name->value = name + "_expr_" + QString::fromLatin1("%1").arg(lineno+1);
+                func->name->startLine = lineno;
+                func->name->endLine = lineno;
+                func->name->startCol = col_offset;
+                func->name->endCol = func->name->startCol + name.size() - 1;
+                result.append(func);
+
+                // Generate call
+                //auto target = newSelfAttr(lineno, parent, func->name->value);
+                auto call = new Python::CallAst(v);
+                auto target = new Python::NameAst(call);
+                target->identifier = new Python::Identifier(func->name->value);
+                target->identifier->startCol = func->name->startCol;
+                target->identifier->endCol = func->name->endCol;
+                target->identifier->startLine = func->name->startLine;
+                target->identifier->endLine = func->name->endLine;
+                target->startCol = target->identifier->startCol;
+                target->endCol = target->identifier->endCol;
+                target->startLine = target->identifier->startLine;
+                target->endLine = target->identifier->endLine;
+
+                call->function = target;
+                call->startCol = func->name->endCol + 1;
+                call->endCol = func->name->endCol + 2;
+                call->startLine = lineno;
+                call->endLine = lineno;
+                v->value = call;
+            }
+            else {
+                v->value = static_cast<Python::ExpressionAst*>(visitPythonExpressionNode(expr_value, v));
+            }
+        }
+        result.append(v);
     }
     else if (PyObject_IsInstance(node, enaml.ast_FuncDef) || PyObject_IsInstance(node, enaml.ast_AsyncFuncDef)) {
         // qDebug() << "funcdef";
@@ -423,66 +513,28 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             target->endCol = target->identifier->endCol;
             v->target = target;
         }
-        QString target = getattr<QString>(node, "target");
-        if  (target.size())
+
         {
+            QString target = getattr<QString>(node, "target");
             auto value = new Python::NameAst(v);
             value->identifier = new Python::Identifier(target);
             value->context = Python::ExpressionAst::Context::Load;
-            value->identifier->startLine = tline(getattr<int>(node, "lineno"));
-            value->identifier->startCol = getattr<int>(node, "col_offset");
+            value->identifier->startLine = lineno;
+            value->identifier->startCol = col_offset;
             value->identifier->endLine = value->identifier->startLine;
             value->identifier->endCol = value->identifier->startCol + target.size() - 1;
             value->startLine = value->identifier->startLine;
             value->startCol = value->identifier->startCol;
             value->endLine = value->identifier->endLine;
             value->endCol = value->identifier->endCol;
-            v->value = value;
-        }
-        else {
+
             PyObject* chain = getattr<PyObjectRef>(node, "chain");
             Q_ASSERT(PyTuple_Check(chain));
-            Python::AttributeAst* attr = nullptr;
-            Python::Ast* value_parent = v;
-            for (int i=PyTuple_Size(chain)-1; i >= 0; i--) {
-                PyObject* item = PyTuple_GET_ITEM(chain, i); // borrowed
-                Py_INCREF(item); // Next line does a decref
-                QString key = PyUnicodeObjectToQString(item);
-                if (i > 0)
-                {
-                    attr = new Python::AttributeAst(value_parent);
-                    attr->context = Python::ExpressionAst::Context::Load;
-                    attr->attribute = new Python::Identifier(key);
-                    attr->attribute->startCol = getattr<int>(item, "col_offset");
-                    attr->attribute->endCol = attr->attribute->startCol + key.size() - 1;
-                    attr->attribute->startLine = lineno;
-                    attr->attribute->endLine = lineno;
-                    attr->startCol = attr->attribute->startCol;
-                    attr->endCol = attr->attribute->endCol;
-                    attr->startLine = lineno;
-                    attr->endLine = lineno;
-                    value_parent = attr;
-                }
-                else {
-                    auto value = new Python::NameAst(value_parent);
-                    value->context = Python::ExpressionAst::Context::Load;
-                    value->identifier = new Python::Identifier(key);
-                    value->identifier->startCol = getattr<int>(item, "col_offset");
-                    value->identifier->endCol = attr->attribute->startCol + key.size() - 1;
-                    value->identifier->startLine = lineno;
-                    value->identifier->endLine = lineno;
-                    value->startLine = lineno;
-                    value->endLine = lineno;
-
-                    attr->value = value;
-                }
-
-
-            }
+            if (PyTuple_Size(chain) > 0)
+                v->value = buildAttrChain(chain, value, Python::ExpressionAst::Context::Load);
+            else
+                v->value = value;
             Py_DECREF(chain);
-            Q_ASSERT(attr);
-            v->value = attr;
-
         }
         result.append(v);
     }
@@ -600,6 +652,37 @@ Python::AttributeAst* AstTransformer::newSelfAttr(int lineno, Python::Ast* paren
     v->endLine = lineno;
 
     return v;
+}
+
+Python::AttributeAst* AstTransformer::buildAttrChain(PyObject* chain, Python::Ast* parent, Python::ExpressionAst::Context ctx, int startIndex)
+{
+    Q_ASSERT(PyTuple_Check(chain));
+    Python::AttributeAst* attr = nullptr;
+    Python::Ast* next_parent = parent;
+    const int lineno = parent->startLine;
+    int col_offset = parent->endCol + 2; // " attr."
+    for (int i=startIndex; i < PyTuple_Size(chain); i++) {
+        PyObject* item = PyTuple_GET_ITEM(chain, i); // borrowed
+        Py_INCREF(item); // Next line does a decref
+        QString key = PyUnicodeObjectToQString(item);
+        attr = new Python::AttributeAst(next_parent);
+        attr->context = Python::ExpressionAst::Context::Load;
+        attr->value = static_cast<Python::ExpressionAst*>(next_parent);
+        attr->attribute = new Python::Identifier(key);
+        attr->attribute->startCol = col_offset;
+        attr->attribute->endCol = attr->attribute->startCol + key.size() - 1;
+        attr->attribute->startLine = lineno;
+        attr->attribute->endLine = lineno;
+        attr->startCol = attr->attribute->startCol;
+        attr->endCol = attr->attribute->endCol;
+        attr->startLine = lineno;
+        attr->endLine = lineno;
+        next_parent = attr;
+        col_offset = attr->attribute->endCol + 2;
+    }
+    Q_ASSERT(attr);
+    attr->context = ctx;
+    return attr;
 }
 
 } // end namespace Enaml

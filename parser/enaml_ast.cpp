@@ -67,6 +67,36 @@ QString BindingAst::dump() const
     return r;
 }
 
+QString ExBindingAst::dump() const
+{
+    QString r = "ExBinding(";
+    dumpNode(r, "target=", target);
+    dumpNode(r, ", value=", value);
+    switch (op) {
+        case Op::Assignment:
+            r.append(", op=Assignment");
+            break;
+        case Op::Delegation:
+            r.append(", op=Delegation");
+            break;
+        case Op::Subscription:
+            r.append(", op=Subscription");
+            break;
+        case Op::Update:
+            r.append(", op=Update");
+            break;
+        case Op::Notification:
+            r.append(", op=Notification");
+            break;
+        default:
+            r.append(", op=Invalid");
+            break;
+    }
+    dumpRange(r, ", range=", this);
+    r.append(")");
+    return r;
+}
+
 QString AliasAst::dump() const
 {
     QString r = "Alias(";
