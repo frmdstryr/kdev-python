@@ -954,8 +954,8 @@ WithItemAst::WithItemAst(Ast* parent): Ast(parent, Ast::WithItemAstType)
 QString WithItemAst::dump() const
 {
     QString r = "WithItem(";
-    dumpNode(r, ", contextExpression=", optionalVars);
-    dumpNode(r, ", optionalVars=", contextExpression);
+    dumpNode(r, "contextExpression=", contextExpression);
+    dumpNode(r, ", optionalVars=", optionalVars);
     dumpRange(r, ", range=", this);
     r.append(")");
     return r;
