@@ -1495,11 +1495,12 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         }
     }
 
-    if (dynamic_cast<Enaml::EnamlDefAst*>(node->parent) ||
-        dynamic_cast<Enaml::ChildDefAst*>(node->parent))
-    {
+    const bool isEnamlNode = (
+        dynamic_cast<Enaml::EnamlDefAst*>(node->parent)
+        || dynamic_cast<Enaml::ChildDefAst*>(node->parent)
+    );
+    if (isEnamlNode)
         dec->setClosure(true);
-    }
 
     visitFunctionArguments(node);
     visitFunctionBody(node);
@@ -1511,7 +1512,13 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
     closeType();
 
     // python methods don't have their parents attributes directly inside them
-    if ( eventualParentDeclaration && eventualParentDeclaration->internalContext() && dec->internalContext() ) {
+    // except for enaml funcs
+    if (
+        eventualParentDeclaration
+        && eventualParentDeclaration->internalContext()
+        && dec->internalContext()
+        && !isEnamlNode
+    ) {
         dec->internalContext()->removeImportedParentContext(eventualParentDeclaration->internalContext());
     }
     

@@ -18,7 +18,10 @@ void RangeFixVisitor::visitFunctionDefinition(Python::FunctionDefinitionAst* nod
     if (dynamic_cast<EnamlDefAst*>(node->parent) || dynamic_cast<ChildDefAst*>(node->parent))
     {
         const int asyncOffset = node->async ? indexOf(node->startLine, "async") + 5: 0;
-        const int offset = indexOf(node->startLine, "=>") > 0 ? 0 : 5;
+        const bool isOverride = indexOf(node->startLine, "=>") > 0;
+        const bool isNotification = indexOf(node->startLine, "::") > 0;
+        const bool isUpdate = indexOf(node->startLine, "<<") > 0;
+        const int offset = (isOverride || isNotification || isUpdate) ? 0 : 5;
         const int i = firstNonSpace(node->name, asyncOffset);
         const int previousLength = node->name->endCol - node->name->startCol;
         node->name->startCol = i + offset;
@@ -53,19 +56,15 @@ void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
 }
 
 void RangeFixVisitor::visitChildDef(ChildDefAst* node) {
-    const int previousLength = node->endCol - node->startCol;
-    const int i = firstNonSpace(node);
-    node->name->startCol = i;
-    node->name->endCol = i + previousLength;
-    node->startCol = node->name->startCol;
-    node->endCol = node->name->endCol;
+    const int previousLength = node->name->endCol - node->name->startCol;
+    const int startCol = firstNonSpace(node);
+    node->name->startCol = startCol;
+    node->name->endCol = startCol + previousLength;
 
     // Fix base
     auto base = static_cast<Python::NameAst*>(node->baseClasses.at(0));
     base->identifier->startCol = node->name->startCol;
     base->identifier->endCol = node->name->endCol;
-    base->startCol = base->identifier->startCol;
-    base->endCol = base->identifier->endCol;
 
     AstDefaultVisitor::visitClassDefinition(node);
 }
@@ -133,10 +132,10 @@ void RangeFixVisitor::visitStorageExpr(StorageExprAst* node)
         default:
             break;
     }
-    const int previousLength = node->endCol - node->startCol;
     const int startCol = firstNonSpace(node, firstNonSpace(node) + n);
     if (startCol >= 0)
     {
+        const int previousLength = node->target->endCol - node->target->startCol;
         node->target->startCol = startCol;
         node->target->endCol = startCol + previousLength;
         if (auto name = dynamic_cast<Python::NameAst*>(node->target))
@@ -152,29 +151,38 @@ void RangeFixVisitor::visitStorageExpr(StorageExprAst* node)
 }
 
 void RangeFixVisitor::visitEnamlAlias(AliasAst* node) {
-    const int previousLength = node->endCol - node->startCol;
-    const int startCol = firstNonSpace(node, firstNonSpace(node) + 5);
-    if (startCol >= 0) {
+    const int startCol = firstNonSpace(node, indexOf(node->startCol, "alias") + 5);
+    if (startCol > 0)
+    {
+        const int targetLength = node->target->endCol - node->target->startCol;
         node->target->startCol = startCol;
-        node->target->endCol = startCol + previousLength;
+        node->target->endCol = startCol + targetLength;
         if (auto name = dynamic_cast<Python::NameAst*>(node->target))
         {
             name->identifier->startCol = startCol;
-            name->identifier->endCol = startCol + previousLength;
+            name->identifier->endCol = startCol + targetLength;
         }
-        node->startCol = node->target->startCol;
-        node->endCol = node->target->endCol;
+
+        if (auto value = dynamic_cast<Python::NameAst*>(node->value))
+        {
+            const int colonPos = indexOf(node->startCol, ":");
+            const int valueLength = node->value->endCol - node->value->startCol;
+            const int valueStartCol = (colonPos > 0) ? firstNonSpace(node, colonPos + 1): startCol;
+            value->startCol = valueStartCol;
+            value->endCol = valueStartCol + valueLength;
+            value->identifier->startCol = valueStartCol;
+            value->identifier->endCol = valueStartCol + valueLength;
+        }
     }
     AstDefaultVisitor::visitAnnotationAssignment(node);
 }
 
 void RangeFixVisitor::visitBinding(BindingAst* node)
 {
-    int n = 0;
-    const int previousLength = node->endCol - node->startCol;
-    const int startCol = firstNonSpace(node) + n;
+    const int startCol = firstNonSpace(node);
     if (startCol >= 0)
     {
+        const int previousLength = node->target->endCol - node->target->startCol;
         node->target->startCol = startCol;
         node->target->endCol = startCol + previousLength;
         if (auto name = dynamic_cast<Python::NameAst*>(node->target))
@@ -184,29 +192,6 @@ void RangeFixVisitor::visitBinding(BindingAst* node)
         }
         node->startCol = node->target->startCol;
         node->endCol = node->target->endCol;
-        // if (node->value) {
-        //     const int valueLength = node->value->endCol - node->value->startCol;
-        //     switch (node->op) {
-        //         case BindingAst::Op::Assignment:
-        //             node->value->startCol = indexOf(node->startLine, "=") + 1;
-        //             break;
-        //         case BindingAst::Op::Delegation:
-        //             node->value->startCol = indexOf(node->startLine, ":=") + 2;
-        //             break;
-        //         case BindingAst::Op::Subscription:
-        //             node->value->startCol = indexOf(node->startLine, "<<") + 2;
-        //             break;
-        //         case BindingAst::Op::Update:
-        //             node->value->startCol = indexOf(node->startLine, ">>") + 2;
-        //             break;
-        //         case BindingAst::Op::Notification:
-        //             node->value->startCol = indexOf(node->startLine, "::") + 2;
-        //             break;
-        //         default:
-        //             node->value->startCol = node->endCol + 1;
-        //     }
-        //     node->value->endCol = node->value->startCol + valueLength;
-        // }
     }
     AstDefaultVisitor::visitAnnotationAssignment(node);
 }
