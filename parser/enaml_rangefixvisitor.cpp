@@ -31,6 +31,24 @@ void RangeFixVisitor::visitFunctionDefinition(Python::FunctionDefinitionAst* nod
 
 
 void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
+    const int previousLength = node->name->endCol - node->name->startCol;
+    const int i = firstNonSpace(node, 9);
+    node->name->startCol = i;
+    node->name->endCol = i + previousLength;
+    node->startCol = node->name->startCol;
+    node->endCol = node->name->endCol;
+
+    // Fix base
+    {
+        auto base = static_cast<Python::NameAst*>(node->baseClasses.at(0));
+        const int baseLength = base->identifier->endCol - base->identifier->startCol;
+        const int startCol = firstNonSpace(node, indexOf(node->startLine, "(") + 1);
+        base->identifier->startCol = startCol;
+        base->identifier->endCol = startCol + baseLength;
+        base->startCol = base->identifier->startCol;
+        base->endCol = base->identifier->endCol;
+    }
+
     AstDefaultVisitor::visitClassDefinition(node);
 }
 

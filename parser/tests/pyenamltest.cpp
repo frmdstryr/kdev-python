@@ -192,6 +192,7 @@ void PyEnamlTest::testRanges_data()
 
     // NOTE: endCol is inclusive (aka len - 1)
     QTest::newRow("enamldef") << "enamldef Main(Window):\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
+    QTest::newRow("enamldef_base") << "enamldef Main(Window):\n pass" << "Window" << KTextEditor::Range(0, 14, 0, 19);
     QTest::newRow("enamldef_with_ident") << "enamldef Main(Window): main:\n pass" << "Main" << KTextEditor::Range(0, 9, 0, 12);
     QTest::newRow("enamldef_ident") << "enamldef Main(Window): main:\n pass" << "main" << KTextEditor::Range(0, 23, 0, 26);
     QTest::newRow("enamldef_self") << "enamldef Main(Window):\n pass" << "self" << KTextEditor::Range(0, 21, 0, 21);
