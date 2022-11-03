@@ -51,6 +51,12 @@ public:
     QString dump() const override;
 };
 
+class KDEVPYTHONPARSER_EXPORT ExBindingAst: public BindingAst {
+public:
+    ExBindingAst(Python::Ast* parent): BindingAst(parent) {};
+    QString dump() const override;
+};
+
 class KDEVPYTHONPARSER_EXPORT AliasAst: public Python::AnnotationAssignmentAst {
 public:
     AliasAst(Python::Ast* parent): Python::AnnotationAssignmentAst(parent) {};
