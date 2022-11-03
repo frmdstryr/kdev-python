@@ -925,7 +925,7 @@ void DeclarationBuilder::addArgumentTypeHints(CallAst* node, DeclarationPointer 
     // Look for the "self" in the argument list, the type of that should not be updated.
     bool hasSelfParam = false;
     if ( ( function->context()->type() == DUContext::Class || funcInfo.isConstructor )
-            && ! function->isStatic() )
+            && ! function->isStatic() && ! function->isClosure() )
     {
         // ... unless for some reason the function only has *vararg, **kwarg as parameters
         // (this could happen for example if the method is static but kdev-python does not know,
@@ -1827,7 +1827,8 @@ void DeclarationBuilder::visitArguments( ArgumentsAst* node )
         }
 
 
-        if ( isFirst && ! workingOnDeclaration->isStatic() && currentContext() && currentContext()->parentContext() ) {
+        if ( isFirst && ! workingOnDeclaration->isStatic() && ! workingOnDeclaration->isClosure()
+                && currentContext() && currentContext()->parentContext() ) {
             DUChainReadLocker lock;
             if ( currentContext()->parentContext()->type() == DUContext::Class ) {
                 argumentType = m_currentClassTypes.last().cast<AbstractType>();
