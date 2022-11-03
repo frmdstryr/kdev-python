@@ -209,6 +209,7 @@ void PyEnamlTest::testRanges_data()
     QTest::newRow("alias") << "enamldef Main(Window):\n alias x" << "x" << KTextEditor::Range(1, 7, 1, 7);
     QTest::newRow("alias_with_target") << "enamldef Main(Window):\n alias x: y" << "x" << KTextEditor::Range(1, 7, 1, 7);
     QTest::newRow("alias_target") << "enamldef Main(Window):\n alias x: y" << "y" << KTextEditor::Range(1, 10, 1, 10);
+    QTest::newRow("alias_target2") << "enamldef Main(Window):\n alias x:  y" << "y" << KTextEditor::Range(1, 11, 1, 11);
 
     QTest::newRow("binding") << "enamldef Main(Window):\n x = 1" << "x" << KTextEditor::Range(1, 1, 1, 1);
     QTest::newRow("binding_value") << "enamldef Main(Window):\n x = y" << "y" << KTextEditor::Range(1, 5, 1, 5);
