@@ -3,6 +3,14 @@
 namespace Enaml {
 
 
+bool EnamlDefAst::visit(Python::AstVisitor* visitor)
+{
+    if (identifier)
+        visitor->visitNode(identifier);
+    return false;
+}
+
+
 QString EnamlDefAst::dump() const
 {
     QString r;
@@ -14,6 +22,14 @@ QString EnamlDefAst::dump() const
     r.append(")");
     return r;
 }
+
+bool ChildDefAst::visit(Python::AstVisitor* visitor)
+{
+    if (identifier)
+        visitor->visitNode(identifier);
+    return false;
+}
+
 
 QString StorageExprAst::dump() const
 {
@@ -105,6 +121,13 @@ QString AliasAst::dump() const
     dumpRange(r, ", range=", this);
     r.append(")");
     return r;
+}
+
+bool TemplateAst::visit(Python::AstVisitor* visitor)
+{
+    if (identifier)
+        visitor->visitNode(identifier);
+    return false;
 }
 
 } // end namespace Enaml
