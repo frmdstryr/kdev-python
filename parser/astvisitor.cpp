@@ -23,6 +23,11 @@ AstVisitor::~AstVisitor() { }
 void AstVisitor::visitNode(Ast* node)
 {
     if ( ! node ) return;
+
+    // Allow custom visit handling
+    if ( node->visit(this) )
+        return;
+
     switch ( node->astType ) {
         case Ast::CodeAstType:                                  this->visitCode(static_cast<CodeAst*>(node)); break;
         case Ast::FunctionDefinitionAstType:                    this->visitFunctionDefinition(static_cast<FunctionDefinitionAst*>(node)); break;
