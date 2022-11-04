@@ -24,6 +24,7 @@
 
 #include <functional>
 
+#include "declarations/classdeclaration.h"
 #include "declarations/functiondeclaration.h"
 
 using namespace KDevelop;

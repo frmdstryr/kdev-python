@@ -27,6 +27,7 @@
 #include "pythonduchainexport.h"
 #include "pythoneditorintegrator.h"
 
+#include "duchain/declarations/classdeclaration.h"
 #include "duchain/declarations/functiondeclaration.h"
 #include "duchain/helpers.h"
 

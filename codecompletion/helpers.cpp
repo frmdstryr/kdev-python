@@ -23,6 +23,7 @@
 #include <QDebug>
 #include "codecompletiondebug.h"
 
+#include "duchain/declarations/classdeclaration.h"
 #include "duchain/declarations/functiondeclaration.h"
 #include "parser/codehelpers.h"
 
