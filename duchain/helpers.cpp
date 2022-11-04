@@ -179,17 +179,31 @@ Declaration* Helper::declarationForName(const QString& name, const CursorInRevis
 
     QList<Declaration*> declarations;
     const DUContext* currentContext = context.data();
-    bool findInNext = true, findBeyondUse = false;
+    bool findInNext = true, findBeyondUse = false, dynamicallyScoped = false;
+
     do {
+        if (auto owner = currentContext->owner()) {
+            if (auto cls = dynamic_cast<ClassDeclaration*>(owner))
+                dynamicallyScoped = dynamicallyScoped || cls->isDynamicallyScoped();
+            else if (auto func = dynamic_cast<FunctionDeclaration*>(owner))
+                dynamicallyScoped = dynamicallyScoped || func->isDynamicallyScoped();
+        }
+
         if (findInNext) {
             CursorInRevision findUntil = findBeyondUse ? currentContext->topContext()->range().end : location;
             declarations = currentContext->findDeclarations(identifier, findUntil);
 
+
             for (Declaration* declaration: declarations) {
-                if (declaration->context()->type() != DUContext::Class ||
-                    (currentContext->type() == DUContext::Function && declaration->context() == currentContext->parentContext())) {
+                if (declaration->context()->type() != DUContext::Class
+                    || (
+                        dynamicallyScoped && currentContext->type() == DUContext::Class
+                        && declaration->context() == currentContext->parentContext()
+                    )
+                    || (currentContext->type() == DUContext::Function && declaration->context() == currentContext->parentContext())
+                ) {
                      // Declarations from class decls must be referenced through `self.<foo>`, except
-                     //  in their local scope (handled above) or when used as default arguments for methods of the same class.
+                     // in their local scope (handled above) or when used as default arguments for methods of the same class.
                      // Otherwise, we're done!
                     return declaration;
                 }
