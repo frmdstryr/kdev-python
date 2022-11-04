@@ -226,8 +226,8 @@ void PyEnamlTest::testRanges_data()
     QTest::newRow("mod_enamldef_mod") << "from x import Window\nenamldef Main(Window):\n pass\ndef foo():\n pass" << "foo" << KTextEditor::Range(3, 4, 3, 6);
 
     // TODO: How should idents be defined??
-    // QTest::newRow("childdef_ident") << "enamldef Main(Window):\n Label: lbl:\n  pass" << "lbl" << KTextEditor::Range(1, 8, 1, 10);
-    // QTest::newRow("enamldef_ident") << "enamldef Main(Window): main:\n pass" << "main" << KTextEditor::Range(0, 23, 0, 26);
+    QTest::newRow("childdef_ident") << "enamldef Main(Window):\n Label: lbl:\n  pass" << "lbl" << KTextEditor::Range(1, 8, 1, 10);
+    QTest::newRow("enamldef_ident") << "enamldef Main(Window): main:\n pass" << "main" << KTextEditor::Range(0, 23, 0, 26);
 
     // TODO: Update test to support Attributes
     // QTest::newRow("alias_chain") << "enamldef Main(Window):\n alias x: y.z" << "z" << KTextEditor::Range(1, 12, 1, 12);
