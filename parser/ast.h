@@ -38,6 +38,7 @@ namespace Python {
     class ExpressionAst;
     class StatementAst;
     class Ast;
+    class AstVisitor;
     class ExceptionHandlerAst;
     class AliasAst;
     class ComprehensionAst;
@@ -229,6 +230,13 @@ public:
         }
         return false;
     }
+
+    // Override to hook custom Ast nodes into the default visitor.
+    // return true to prevent default handling for the ast type
+    virtual bool visit(AstVisitor* visitor) {
+        Q_UNUSED(visitor);
+        return false;
+    };
 
     static QString dump(const Ast *node)
     {
