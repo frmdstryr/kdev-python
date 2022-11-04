@@ -1,5 +1,6 @@
 #pragma once
 #include "ast.h"
+#include "astvisitor.h"
 
 namespace Enaml {
 
@@ -7,18 +8,21 @@ class KDEVPYTHONPARSER_EXPORT EnamlDefAst: public Python::ClassDefinitionAst {
 public:
     EnamlDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
     Python::Identifier* identifier = nullptr;
+    bool visit(Python::AstVisitor* visitor) override;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT ChildDefAst: public Python::ClassDefinitionAst {
 public:
     ChildDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
+    bool visit(Python::AstVisitor* visitor) override;
     Python::Identifier* identifier = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT TemplateAst: public Python::ClassDefinitionAst {
 public:
     TemplateAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
+    bool visit(Python::AstVisitor* visitor) override;
     Python::Identifier* identifier = nullptr;
 };
 
