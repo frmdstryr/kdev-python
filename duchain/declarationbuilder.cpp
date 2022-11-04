@@ -8,6 +8,7 @@
 */
 
 #include "declarationbuilder.h"
+#include "duchain/declarations/classdeclaration.h"
 #include "duchain/declarations/functiondeclaration.h"
 
 #include "types/hintedtype.h"
@@ -925,7 +926,7 @@ void DeclarationBuilder::addArgumentTypeHints(CallAst* node, DeclarationPointer 
     // Look for the "self" in the argument list, the type of that should not be updated.
     bool hasSelfParam = false;
     if ( ( function->context()->type() == DUContext::Class || funcInfo.isConstructor )
-            && ! function->isStatic() && ! function->isClosure() )
+            && ! function->isStatic() && ! function->isDynamicallyScoped() )
     {
         // ... unless for some reason the function only has *vararg, **kwarg as parameters
         // (this could happen for example if the method is static but kdev-python does not know,
@@ -1433,6 +1434,34 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
     openContextForClassDefinition(node);
     dec->setInternalContext(currentContext());
 
+
+    if (auto n = dynamic_cast<Enaml::EnamlDefAst*>(node)) {
+        // Add enaml self and identifier
+        dec->setDynamicallyScoped(true);
+        if (n->identifier)
+        {
+            DUChainWriteLocker lock;
+            Declaration* obj = openDeclaration<Declaration>(n->identifier);
+            DeclarationBuilderBase::closeDeclaration();
+            obj->setType(type);
+            obj->setKind(KDevelop::Declaration::Instance);
+            obj->setAutoDeclaration(true);
+        }
+    }
+    else if (auto n = dynamic_cast<Enaml::ChildDefAst*>(node)) {
+        // Add enaml self, parent, and identifier
+        dec->setDynamicallyScoped(true);
+        if (n->identifier)
+        {
+            DUChainWriteLocker lock;
+            Declaration* obj = openDeclaration<Declaration>(n->identifier);
+            DeclarationBuilderBase::closeDeclaration();
+            obj->setType(type);
+            obj->setKind(KDevelop::Declaration::Instance);
+            obj->setAutoDeclaration(true);
+        }
+    }
+
     lock.unlock();
     visitNodeList(node->body);
     lock.lock();
@@ -1469,7 +1498,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
     dec->setStatic(false);
     dec->setClassMethod(false);
     dec->setProperty(false);
-    dec->setClosure(false);
+    dec->setDynamicallyScoped(false);
     foreach ( auto decorator, node->decorators) {
         visitNode(decorator);
         switch (decorator->astType) {
@@ -1500,7 +1529,8 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         || dynamic_cast<Enaml::ChildDefAst*>(node->parent)
     );
     if (isEnamlNode)
-        dec->setClosure(true);
+        dec->setDynamicallyScoped(true);
+
 
     visitFunctionArguments(node);
     visitFunctionBody(node);
@@ -1536,7 +1566,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         dec->setType(type);
     }
 
-    if ( ! dec->isStatic()  && ! dec->isClosure() ) {
+    if ( ! dec->isStatic()  && ! dec->isDynamicallyScoped() ) {
         DUContext* args = DUChainUtils::argumentContext(dec);
         if ( args )  {
             QVector<Declaration*> parameters = args->localDeclarations();
@@ -1827,7 +1857,7 @@ void DeclarationBuilder::visitArguments( ArgumentsAst* node )
         }
 
 
-        if ( isFirst && ! workingOnDeclaration->isStatic() && ! workingOnDeclaration->isClosure()
+        if ( isFirst && ! workingOnDeclaration->isStatic() && ! workingOnDeclaration->isDynamicallyScoped()
                 && currentContext() && currentContext()->parentContext() ) {
             DUChainReadLocker lock;
             if ( currentContext()->parentContext()->type() == DUContext::Class ) {
