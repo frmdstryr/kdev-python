@@ -184,9 +184,9 @@ Declaration* Helper::declarationForName(const QString& name, const CursorInRevis
     do {
         if (auto owner = currentContext->owner()) {
             if (auto cls = dynamic_cast<ClassDeclaration*>(owner))
-                dynamicallyScoped = dynamicallyScoped || cls->isDynamicallyScoped();
+                dynamicallyScoped = cls->isDynamicallyScoped();
             else if (auto func = dynamic_cast<FunctionDeclaration*>(owner))
-                dynamicallyScoped = dynamicallyScoped || func->isDynamicallyScoped();
+                dynamicallyScoped = func->isDynamicallyScoped();
         }
 
         if (findInNext) {
@@ -196,10 +196,7 @@ Declaration* Helper::declarationForName(const QString& name, const CursorInRevis
 
             for (Declaration* declaration: declarations) {
                 if (declaration->context()->type() != DUContext::Class
-                    || (
-                        dynamicallyScoped && currentContext->type() == DUContext::Class
-                        && declaration->context() == currentContext->parentContext()
-                    )
+                    || dynamicallyScoped
                     || (currentContext->type() == DUContext::Function && declaration->context() == currentContext->parentContext())
                 ) {
                      // Declarations from class decls must be referenced through `self.<foo>`, except

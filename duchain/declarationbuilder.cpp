@@ -1547,7 +1547,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         eventualParentDeclaration
         && eventualParentDeclaration->internalContext()
         && dec->internalContext()
-        && !isEnamlNode
+        && !dec->isDynamicallyScoped()
     ) {
         dec->internalContext()->removeImportedParentContext(eventualParentDeclaration->internalContext());
     }
