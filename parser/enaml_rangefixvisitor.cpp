@@ -52,6 +52,15 @@ void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
         base->endCol = base->identifier->endCol;
     }
 
+    // Fix ident
+    if (node->identifier)
+    {
+        const int identLength = node->identifier->endCol - node->identifier->startCol;
+        const int startCol = firstNonSpace(node, indexOf(node->startLine, ":") + 1);
+        node->identifier->startCol = startCol;
+        node->identifier->endCol = startCol + identLength;
+    }
+
     AstDefaultVisitor::visitClassDefinition(node);
 }
 
@@ -65,6 +74,15 @@ void RangeFixVisitor::visitChildDef(ChildDefAst* node) {
     auto base = static_cast<Python::NameAst*>(node->baseClasses.at(0));
     base->identifier->startCol = node->name->startCol;
     base->identifier->endCol = node->name->endCol;
+
+    // Fix ident
+    if (node->identifier)
+    {
+        const int identLength = node->identifier->endCol - node->identifier->startCol;
+        const int startCol = firstNonSpace(node, indexOf(node->startLine, ":") + 1);
+        node->identifier->startCol = startCol;
+        node->identifier->endCol = startCol + identLength;
+    }
 
     AstDefaultVisitor::visitClassDefinition(node);
 }
