@@ -8,6 +8,7 @@
 #include "expressionvisitor.h"
 #include "types/nonetype.h"
 #include "types/indexedcontainer.h"
+#include "declarations/classdeclaration.h"
 #include "declarations/functiondeclaration.h"
 #include "pythonduchainexport.h"
 #include "pythoneditorintegrator.h"
