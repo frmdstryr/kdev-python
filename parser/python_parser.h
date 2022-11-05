@@ -1,3 +1,10 @@
+/*
+    SPDX-FileCopyrightText: 2007 Andreas Pakulat <apaku@gmx.de>
+    SPDX-FileCopyrightText: 2010-2011 Sven Brauch <svenbrauch@googlemail.com>
+    SPDX-FileCopyrightText: 2022 Jairus Martin <jrm@codelv.com>
+
+    SPDX-License-Identifier: GPL-2.0-or-later
+*/
 #pragma once
 #include <QMutex>
 #include "python_asttransformer.h"
