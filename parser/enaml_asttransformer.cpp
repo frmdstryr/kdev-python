@@ -62,11 +62,13 @@ Ast* AstTransformer::visitEnamlDefNode(PyObject* node, Ast* parent)
     // qDebug() << "Visit enaml node: " << PyUnicodeObjectToQString(PyObject_Str(node));
     Q_ASSERT(PyObject_IsInstance(node, enaml.ast_EnamlDef));
 
+    const int lineno = tline(getattr<int>(node, "lineno"));
+
     auto* v = new Enaml::EnamlDefAst(parent);
     QString name = getattr<QString>(node, "typename");
     v->name = new Python::Identifier(name);
     v->name->startCol = 9; // enamldef must start at beginning
-    v->name->startLine = tline(getattr<int>(node, "lineno"));
+    v->name->startLine = lineno;
     v->name->endCol = v->name->startCol + name.size() - 1;
     v->name->endLine = v->name->startLine;
 
@@ -74,6 +76,13 @@ Ast* AstTransformer::visitEnamlDefNode(PyObject* node, Ast* parent)
     v->startLine = v->name->startLine;
     v->endCol = v->name->endCol;
     v->endLine = v->name->endLine;
+
+    auto self = new Python::Identifier("self");
+    self->startLine = lineno;
+    self->endLine = lineno;
+    self->startCol = v->name->startCol;
+    self->endCol = v->name->endCol;
+    v->self = self;
 
     {
         // Exactly one base is required
@@ -96,11 +105,19 @@ Ast* AstTransformer::visitEnamlDefNode(PyObject* node, Ast* parent)
         QString identifier = getattr<QString>(node, "identifier");
         if (identifier.size())
         {
-            v->identifier = new Python::Identifier(identifier);
-            v->identifier->startLine = v->startLine;
-            v->identifier->endLine = v->endLine;
-            v->identifier->startCol = v->baseClasses.at(0)->endCol + 1;
-            v->identifier->endCol = v->identifier->startCol + identifier.size() - 1;
+            auto name = new Python::NameAst(v);
+            auto ident = new Python::Identifier(identifier);
+            ident->startLine = lineno;
+            ident->endLine = lineno;
+            ident->startCol = v->baseClasses.at(0)->endCol + 1;
+            ident->endCol = ident->startCol + identifier.size() - 1;
+            name->context = Python::ExpressionAst::Context::Store;
+            name->identifier = ident;
+            name->startLine = ident->startLine;
+            name->startCol = ident->startCol;
+            name->endCol = ident->endCol;
+            name->endLine = ident->endLine;
+            v->identifier = name;
         }
     }
 
@@ -156,16 +173,18 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
         v->endLine = end_lineno;
 
         QString name = getattr<QString>(node, "typename");
-        if ( name.size() ) {
-            v->name = new Python::Identifier(name + "_" + QString::fromLatin1("%1").arg(lineno+1));
-            v->name->startCol = col_offset; // Fixed by range fix visitor
-            v->name->startLine = lineno;
-            v->name->endCol = v->name->startCol + name.size() - 1;
-            v->name->endLine = lineno;
-        }
-        else {
-            v->name = nullptr;
-        }
+        v->name = new Python::Identifier(name + "_" + QString::fromLatin1("%1").arg(lineno+1));
+        v->name->startCol = col_offset; // Fixed by range fix visitor
+        v->name->startLine = lineno;
+        v->name->endCol = v->name->startCol + name.size() - 1;
+        v->name->endLine = lineno;
+
+        auto self = new Python::Identifier("self");
+        self->startLine = lineno;
+        self->endLine = lineno;
+        self->startCol = v->name->startCol;
+        self->endCol = v->name->endCol;
+        v->self = self;
 
         {
             // Exactly one base is required
@@ -188,11 +207,19 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             QString identifier = getattr<QString>(node, "identifier");
             if (identifier.size())
             {
-                v->identifier = new Python::Identifier(identifier);
-                v->identifier->startLine = lineno;
-                v->identifier->endLine = lineno;
-                v->identifier->startCol = v->baseClasses.at(0)->endCol + 1;
-                v->identifier->endCol = v->identifier->startCol + identifier.size() - 1;
+                auto name = new Python::NameAst(v);
+                auto ident = new Python::Identifier(identifier);
+                ident->startLine = lineno;
+                ident->endLine = lineno;
+                ident->startCol = v->baseClasses.at(0)->endCol + 1;
+                ident->endCol = ident->startCol + identifier.size() - 1;
+                name->context = Python::ExpressionAst::Context::Store;
+                name->identifier = ident;
+                name->startLine = ident->startLine;
+                name->startCol = ident->startCol;
+                name->endCol = ident->endCol;
+                name->endLine = ident->endLine;
+                v->identifier = name;
             }
         }
 
