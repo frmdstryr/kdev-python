@@ -10,6 +10,7 @@ namespace Enaml {
 
 bool EnamlDefAst::visit(Python::AstVisitor* visitor)
 {
+    visitor->visitNode(self);
     if (identifier)
         visitor->visitNode(identifier);
     return false;
@@ -30,6 +31,7 @@ QString EnamlDefAst::dump() const
 
 bool ChildDefAst::visit(Python::AstVisitor* visitor)
 {
+    visitor->visitNode(self);
     if (identifier)
         visitor->visitNode(identifier);
     return false;
