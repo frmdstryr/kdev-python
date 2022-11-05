@@ -1,3 +1,8 @@
+/*
+    SPDX-FileCopyrightText: 2022 Jairus Martin <jrm@codelv.com>
+
+    SPDX-License-Identifier: GPL-2.0-or-later
+*/
 #pragma once
 
 #include "python_asttransformer.h"
@@ -20,9 +25,6 @@ public:
     Python::Ast* visitPythonExpressionBlockNode(PyObject* node, Python::Ast* parent);
 
 private:
-    // Eg build a self.attr
-    Python::AttributeAst* newSelfAttr(int lineno, Python::Ast* parent, QString attr);
-
     Python::AttributeAst* buildAttrChain(PyObject* chain, Python::Ast* parent, Python::ExpressionAst::Context ctx, int startIndex=0);
 
     Grammar enaml;
