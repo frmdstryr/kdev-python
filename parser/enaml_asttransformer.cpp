@@ -1,3 +1,8 @@
+/*
+    SPDX-FileCopyrightText: 2022 Jairus Martin <jrm@codelv.com>
+
+    SPDX-License-Identifier: GPL-2.0-or-later
+*/
 #include "enaml_asttransformer.h"
 #include "astbuilder.h"
 
@@ -113,103 +118,6 @@ QList<Ast*> AstTransformer::visitEnamlDefBody(PyObject* node, Ast* parent)
     QList<Ast*> nodelist;
     if (!node || node == Py_None) return nodelist;
 
-    // Python::Identifier* identifier = nullptr;
-    // Python::Identifier* class_name = nullptr;
-    // bool root = false;
-    // if (auto enamldef = dynamic_cast<EnamlDefAst*>(parent))
-    // {
-    //     identifier = enamldef->identifier;
-    //     class_name = enamldef->name;
-    //     root = true;
-    // }
-    // else if (auto childdef = dynamic_cast<ChildDefAst*>(parent))
-    // {
-    //     identifier = childdef->identifier;
-    //     class_name = static_cast<Python::NameAst*>(childdef->baseClasses.at(0))->identifier;
-    // }
-    // {
-    //     // self = EnamlDefCls()
-    //     auto assignment = new Python::AssignmentAst(parent);
-    //     auto target = new Python::NameAst(assignment);
-    //     target->context = Python::ExpressionAst::Store;
-    //     auto self = new Python::Identifier("self");
-    //     target->identifier = self;
-    //     self->startLine = parent->startLine;
-    //     self->startCol = 0; // Zero sized at end of line
-    //     self->endLine = parent->startLine;
-    //     self->endCol = 0;
-    //     target->startLine = parent->startLine;
-    //     target->startCol = self->startCol;
-    //     target->endLine = parent->endLine;
-    //     target->endCol = self->endCol;
-    //     assignment->targets.append(target);
-    //
-    //     auto call = new Python::CallAst(assignment);
-    //     auto func = new Python::NameAst(call);
-    //     func->context = Python::ExpressionAst::Load;
-    //     auto cls = new Python::Identifier(class_name->value);
-    //     func->identifier = cls;
-    //     cls->startLine = parent->startLine;
-    //     cls->startCol = 0; // Zero sized at end of line
-    //     cls->endCol = parent->endCol;
-    //     cls->endLine = 0;
-    //
-    //     func->startLine = cls->startLine;
-    //     func->startCol = cls->startCol;
-    //     func->endCol = cls->endCol;
-    //     func->endLine = cls->endLine;
-    //     call->function = func;
-    //     call->startCol = func->startCol;
-    //     call->endCol = func->endCol;
-    //     call->startLine = func->startLine;
-    //     call->endLine = func->endLine;
-    //     assignment->value = call;
-    //
-    //     assignment->startLine = parent->startLine;
-    //     assignment->endLine = parent->endLine;
-    //
-    //     nodelist.append(assignment);
-    // }
-    //
-    // Q_ASSERT(class_name);
-    //
-    // if (identifier)
-    // {
-    //     // ident = self
-    //     auto assignment = new Python::AssignmentAst(parent);
-    //     auto target = new Python::NameAst(assignment);
-    //     target->context = Python::ExpressionAst::Store;
-    //     auto ident = new Python::Identifier(identifier->value);
-    //     target->identifier = ident;
-    //     ident->startLine = identifier->startLine;
-    //     ident->startCol = identifier->startCol;
-    //     ident->endLine = identifier->endLine;
-    //     ident->endCol = identifier->endCol;
-    //     target->startLine = ident->startLine;
-    //     target->startCol = ident->startCol;
-    //     target->endLine = ident->endLine;
-    //     target->endCol = ident->endCol;
-    //     assignment->targets.append(target);
-    //
-    //     auto value = new Python::NameAst(assignment);
-    //     auto self = new Python::Identifier("self");
-    //     self->startLine = ident->startLine;
-    //     self->startCol = ident->startCol;
-    //     self->endLine = ident->endLine;
-    //     self->endCol = ident->endCol;
-    //     value->identifier = self;
-    //     value->context = Python::ExpressionAst::Load;
-    //     value->startLine = ident->startLine;
-    //     value->endLine = ident->endLine;
-    //     assignment->value = value;
-    //     assignment->startLine = parent->startLine;
-    //     assignment->endLine = parent->endLine;
-    //
-    //     nodelist.append(assignment);
-    // }
-
-    // TODO: If not root
-
     Q_ASSERT(PyList_Check(node));
     for ( int i=0; i < PyList_Size(node); i++ )
     {
@@ -293,10 +201,6 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             v->body = visitEnamlDefBody(body, v);
         }
         result.append(v);
-
-        // Build a with ChildDef() as self to set the block context
-
-
     }
     else if (PyObject_IsInstance(node, enaml.ast_Binding)) {
         // eg: x := y
@@ -309,7 +213,6 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
 
         QString name = getattr<QString>(node, "name");
         {
-            //auto target = newSelfAttr(lineno, v, name);
             auto target = new Python::NameAst(v);
             target->identifier = new Python::Identifier(name);
             // TODO: Depends on expr op
@@ -587,13 +490,14 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             constant->value = Python::NameConstantAst::None;
             value = constant;
         }
-        //PyObjectRef tp = getattr<PyObjectRef>(node, "typename"); // THIS IS A DEATH TRAP
-        //PyErr_Occurred
-        // setattr(tp, "col_offset", 0); // TODO: Bug? Why is it missing?
-        // if (tp == Py_None)
-        //     v->annotation = nullptr;
-        // else
-        //     v->annotation = static_cast<Python::ExpressionAst*>(visitExprNode(tp, v));
+
+        {
+            PyObjectRef tp = getattr<PyObjectRef>(node, "typename"); // THIS IS A DEATH TRAP
+            if (tp == Py_None)
+                v->annotation = nullptr;
+            else
+                v->annotation = static_cast<Python::ExpressionAst*>(visitExprNode(tp, v));
+        }
         v->target = target;
         v->value = value;
         result.append(v);
@@ -620,38 +524,6 @@ Ast* AstTransformer::visitPythonExpressionNode(PyObject* node, Ast* parent)
     PyObjectRef body = getattr<PyObjectRef>(ast, "body");
     // qDebug() << " body: " << PyUnicodeObjectToQString(PyObject_Str(body));
     return visitExprNode(body, parent);
-}
-
-Python::AttributeAst* AstTransformer::newSelfAttr(int lineno, Python::Ast* parent, QString attr)
-{
-    auto v = new Python::AttributeAst(parent);
-    v->context = Python::ExpressionAst::Store;
-    auto self = new Python::NameAst(v);
-    self->context = Python::ExpressionAst::Load;
-    auto id = new Python::Identifier("self");
-    self->identifier = id;
-    id->startCol = 0;
-    id->endCol = 0;
-    id->startLine = lineno;
-    id->endLine = lineno;
-    self->startCol = id->startCol;
-    self->endCol = id->endCol;
-    self->startLine = lineno;
-    self->endLine = lineno;
-
-    v->value = self;
-    auto attribute = new Python::Identifier(attr);
-    attribute->startLine = lineno;
-    attribute->endLine = lineno;
-    attribute->startCol = 0;
-    attribute->endCol = attr.size() - 1;
-    v->attribute = attribute;
-    v->startCol = 0;
-    v->endCol = attribute->endCol;
-    v->startLine = lineno;
-    v->endLine = lineno;
-
-    return v;
 }
 
 Python::AttributeAst* AstTransformer::buildAttrChain(PyObject* chain, Python::Ast* parent, Python::ExpressionAst::Context ctx, int startIndex)
