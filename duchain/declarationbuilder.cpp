@@ -1446,28 +1446,26 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
     if (auto n = dynamic_cast<Enaml::EnamlDefAst*>(node)) {
         // Add enaml self and identifier
         dec->setDynamicallyScoped(true);
+        DUChainWriteLocker lock;
+        Declaration* obj = openDeclaration<Declaration>(n->self);
+        DeclarationBuilderBase::closeDeclaration();
+        obj->setType(type);
+        obj->setKind(KDevelop::Declaration::Instance);
+        obj->setAutoDeclaration(true);
         if (n->identifier)
-        {
-            DUChainWriteLocker lock;
-            Declaration* obj = openDeclaration<Declaration>(n->identifier);
-            DeclarationBuilderBase::closeDeclaration();
-            obj->setType(type);
-            obj->setKind(KDevelop::Declaration::Instance);
-            obj->setAutoDeclaration(true);
-        }
+            assignToName(n->identifier, SourceType{type, DeclarationPointer(obj), false});
     }
     else if (auto n = dynamic_cast<Enaml::ChildDefAst*>(node)) {
         // Add enaml self, parent, and identifier
         dec->setDynamicallyScoped(true);
+        DUChainWriteLocker lock;
+        Declaration* obj = openDeclaration<Declaration>(n->self);
+        DeclarationBuilderBase::closeDeclaration();
+        obj->setType(type);
+        obj->setKind(KDevelop::Declaration::Instance);
+        obj->setAutoDeclaration(true);
         if (n->identifier)
-        {
-            DUChainWriteLocker lock;
-            Declaration* obj = openDeclaration<Declaration>(n->identifier);
-            DeclarationBuilderBase::closeDeclaration();
-            obj->setType(type);
-            obj->setKind(KDevelop::Declaration::Instance);
-            obj->setAutoDeclaration(true);
-        }
+            assignToName(n->identifier, SourceType{type, DeclarationPointer(obj), false});
     }
 #endif
     lock.unlock();
