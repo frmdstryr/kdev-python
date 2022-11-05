@@ -822,7 +822,15 @@ QList<CompletionTreeItemPointer> PythonCodeCompletionContext::findIncludeItems(I
         }
     }
     else {
-        static QStringList valid_extensions{".py", ".pyx", ".enaml"};
+        static QStringList valid_extensions{
+            ".py"
+#ifdef BUILD_CYTHON_SUPPORT
+            ,".pyx"
+#endif
+#ifdef BUILD_ENAML_SUPPORT
+            , "*.enaml"
+#endif
+        };
         foreach ( const auto& extension, valid_extensions ) {
             QFileInfo file(item.directory.path(), item.remainingIdentifiers.first() + extension);
             qCDebug(KDEV_PYTHON_CODECOMPLETION) << " CHECK:" << file.absoluteFilePath();
@@ -855,11 +863,20 @@ QList<CompletionTreeItemPointer> PythonCodeCompletionContext::findIncludeItems(I
         foreach ( QFileInfo file, contents ) {
             qCDebug(KDEV_PYTHON_CODECOMPLETION) << " > CONTENT:" << file.absolutePath() << file.fileName();
             if ( file.isFile() ) {
-                if ( file.fileName().endsWith(".py") || file.fileName().endsWith(".so") || file.fileName().endsWith(".enaml")) {
+                if ( file.fileName().endsWith(".py")
+                    || file.fileName().endsWith(".so")
+#ifdef BUILD_ENAML_SUPPORT
+                    || file.fileName().endsWith(".enaml")
+#endif
+                ) {
                     IncludeItem fileInclude;
                     fileInclude.basePath = item.directory;
                     fileInclude.isDirectory = false;
+#ifdef BUILD_ENAML_SUPPORT
                     const int extLen = file.fileName().endsWith(".enaml") ? 6 : 3;
+#else
+                    const int extLen = 3;
+#endif
                     fileInclude.name = file.fileName().mid(0, file.fileName().length() - extLen); // remove extension
                     ImportFileItem* import = new ImportFileItem(fileInclude);
                     import->moduleName = fileInclude.name;
