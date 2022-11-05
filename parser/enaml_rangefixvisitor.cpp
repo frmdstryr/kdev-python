@@ -57,13 +57,22 @@ void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
         base->endCol = base->identifier->endCol;
     }
 
+    // Put self at :
+    // TODO: Make it implicit somehow?
+    const int selfStart = indexOf(node->startCol, ":");
+    node->self->startCol = selfStart;
+    node->self->endCol = selfStart;
+
     // Fix ident
     if (node->identifier)
     {
         const int identLength = node->identifier->endCol - node->identifier->startCol;
         const int startCol = firstNonSpace(node, indexOf(node->startLine, ":") + 1);
-        node->identifier->startCol = startCol;
-        node->identifier->endCol = startCol + identLength;
+        auto name = static_cast<Python::NameAst*>(node->identifier);
+        name->identifier->startCol = startCol;
+        name->identifier->endCol = startCol + identLength;
+        name->startCol = startCol;
+        name->endCol = startCol + identLength;
     }
 
     AstDefaultVisitor::visitClassDefinition(node);
@@ -80,13 +89,22 @@ void RangeFixVisitor::visitChildDef(ChildDefAst* node) {
     base->identifier->startCol = node->name->startCol;
     base->identifier->endCol = node->name->endCol;
 
+    // Put self at :
+    // TODO: Make it implicit somehow?
+    const int selfStart = indexOf(node->startCol, ":");
+    node->self->startCol = selfStart;
+    node->self->endCol = selfStart;
+
     // Fix ident
     if (node->identifier)
     {
         const int identLength = node->identifier->endCol - node->identifier->startCol;
         const int startCol = firstNonSpace(node, indexOf(node->startLine, ":") + 1);
-        node->identifier->startCol = startCol;
-        node->identifier->endCol = startCol + identLength;
+        auto name = static_cast<Python::NameAst*>(node->identifier);
+        name->identifier->startCol = startCol;
+        name->identifier->endCol = startCol + identLength;
+        name->startCol = startCol;
+        name->endCol = startCol + identLength;
     }
 
     AstDefaultVisitor::visitClassDefinition(node);
