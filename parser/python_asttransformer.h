@@ -1,3 +1,9 @@
+/*
+    SPDX-FileCopyrightText: 2014 Sven Brauch <svenbrauch@googlemail.com>
+    SPDX-FileCopyrightText: 2022 Jairus Martin <jrm@codelv.com>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
+*/
 #pragma once
 #include "kdevpythonversion.h"
 #include "python_grammar.h"

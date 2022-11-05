@@ -39,7 +39,10 @@
 
 #include <QDebug>
 #include "duchaindebug.h"
+
+#ifdef BUILD_ENAML_SUPPORT
 #include "enaml_ast.h"
+#endif
 
 #include <functional>
 
@@ -721,7 +724,12 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
         if ( path.endsWith(initFile) ) {
             // if the __init__ file is imported, import all the other files in that directory as well
             QDir dir(path.left(path.size() - initFile.size()));
-            dir.setNameFilters({"*.py", "*.enaml"});
+            dir.setNameFilters({
+                "*.py"
+#ifdef BUILD_ENAML_SUPPORT
+                , "*.enaml"
+#endif
+            });
             dir.setFilter(QDir::Files);
             auto files = dir.entryList();
             foreach ( const auto& file, files ) {
@@ -1434,7 +1442,7 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
     openContextForClassDefinition(node);
     dec->setInternalContext(currentContext());
 
-
+#ifdef BUILD_ENAML_SUPPORT
     if (auto n = dynamic_cast<Enaml::EnamlDefAst*>(node)) {
         // Add enaml self and identifier
         dec->setDynamicallyScoped(true);
@@ -1461,7 +1469,7 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
             obj->setAutoDeclaration(true);
         }
     }
-
+#endif
     lock.unlock();
     visitNodeList(node->body);
     lock.lock();
@@ -1524,13 +1532,13 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         }
     }
 
-    const bool isEnamlNode = (
+#ifdef BUILD_ENAML_SUPPORT
+    if (
         dynamic_cast<Enaml::EnamlDefAst*>(node->parent)
         || dynamic_cast<Enaml::ChildDefAst*>(node->parent)
-    );
-    if (isEnamlNode)
+    )
         dec->setDynamicallyScoped(true);
-
+#endif
 
     visitFunctionArguments(node);
     visitFunctionBody(node);

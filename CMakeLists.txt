@@ -84,6 +84,17 @@ if ( NOT WIN32 )
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wfatal-errors -Wall")
 endif ( NOT WIN32 )
 
+# Parser options
+option(BUILD_ENAML_SUPPORT "Include parser support for enaml" ON)
+option(BUILD_CYTHON_SUPPORT "Include parser support for cython" ON)
+if (BUILD_ENAML_SUPPORT)
+    add_definitions(-DBUILD_ENAML_SUPPORT)
+endif()
+if (BUILD_CYTHON_SUPPORT)
+    add_definitions(-DBUILD_CYTHON_SUPPORT)
+endif()
+
+
 # then, build the plugin
 include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
