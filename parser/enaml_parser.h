@@ -14,7 +14,7 @@ using Python::PyObjectRef;
 
 struct Parser: public Python::Parser
 {
-    Parser(QMutex& lock): Python::Parser(lock, false) {}
+    Parser(QMutex& lock): Python::Parser(lock, false, true) {}
     bool load() override
     {
         m_parser_mod = PyImport_ImportModule("enaml.core.parser");

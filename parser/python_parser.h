@@ -7,20 +7,48 @@
 */
 #pragma once
 #include <QMutex>
+#include <parserdebug.h>
 #include "python_asttransformer.h"
 #include "python_header.h"
 #include "rangefixvisitor.h"
 
+#ifdef Q_OS_UNIX
+#include <dlfcn.h>
+#endif
+
 namespace Python {
+
+QString pythonLibraryName() {
+    return QString::fromUtf8(PYTHON_LIBRARY).section('/', -1, -1);
+}
+
 
 struct Parser : private QMutexLocker
 {
     PyObject* m_parser_mod = nullptr;
     PyObject* m_parse_func = nullptr;
 
-    Parser(QMutex& lock, bool nosite = true): QMutexLocker(&lock)
+    Parser(QMutex& lock, bool nosite = true, bool extsupport = false): QMutexLocker(&lock)
     {
         Py_NoSiteFlag = nosite ? 1 : 0;
+#ifdef Q_OS_UNIX
+        if (extsupport)
+        {
+            // We are usually (outside of unit tests) loaded as a plugin. KPluginLoader
+            // loads plugins with RTLD_LOCAL (through QLibrary, but effectively it does).
+            // This means libraries our plugin links against are also loaded into the main process
+            // with RTLD_LOCAL. Thus, the symbols from libpython are *not* in the global symbol
+            // table of the process we're running in. If Python itself loads a plugin -- which easily
+            // happens for anything that "import"s a C module -- that will fail, since this plugin
+            // will not be able to find the symbols from libpython.
+            // Thus, we re-open the library here (usign RTLD_NOLOAD) to change the symbol
+            // visibility to global scope.
+            auto* lib = dlopen(pythonLibraryName().toUtf8().data(), RTLD_LAZY | RTLD_NOLOAD | RTLD_GLOBAL);
+            if (!lib)
+                qCWarning(KDEV_PYTHON_PARSER) << "Error loading libpython:" << dlerror();
+        }
+#endif
+
         Py_InitializeEx(0);
         Q_ASSERT(Py_IsInitialized());
     }
