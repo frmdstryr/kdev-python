@@ -15,8 +15,12 @@
 #include <memory>
 
 #include "python_parser.h"
+#ifdef BUILD_ENAML_SUPPORT
 #include "enaml_parser.h"
+#endif
+#ifdef BUILD_CYTHON_SUPPORT
 #include "cython_parser.h"
+#endif
 #include "astdefaultvisitor.h"
 #include "rangefixvisitor.h"
 
@@ -52,36 +56,31 @@ QString PyUnicodeObjectToQString(PyObject* obj) {
 }
 
 
-
 CodeAst::Ptr AstBuilder::parse(const QUrl& filename, QString &contents)
 {
     qCDebug(KDEV_PYTHON_PARSER) << " ====> AST     ====>     building abstract syntax tree for " << filename.path();
     
     contents.append('\n');
     Parser *parser = nullptr;
-    
+
+#ifdef BUILD_CYTHON_SUPPORT
     if (filename.fileName().endsWith(".pyx")) {
         parser = new Cython::Parser(pyInitLock);
     }
-    else if (filename.fileName().endsWith(".enaml")) {
+#endif
+#ifdef BUILD_ENAML_SUPPORT
+    if (filename.fileName().endsWith(".enaml")) {
         parser = new Enaml::Parser(pyInitLock);
     }
-    else {
+#endif
+    if (!parser)
         parser = new Python::Parser(pyInitLock);
-    }
 
     Q_ASSERT(parser);
     if (!parser->load())
     {
         qCWarning(KDEV_PYTHON_PARSER) << "Internal parser error: failed to load parser";
-        PyObject *exception, *value, *backtrace;
-        PyErr_Fetch(&exception, &value, &backtrace);
-        if (value)
-        {
-            PyObject* msg = PyObject_GetAttrString(value, "msg");
-            if (msg)
-                qCWarning(KDEV_PYTHON_PARSER) << PyUnicodeObjectToQString(msg);
-        }
+        PyErr_Print();
         delete parser;
         return CodeAst::Ptr(); // Module missing
     }
