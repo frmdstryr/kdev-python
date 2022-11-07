@@ -182,26 +182,40 @@ Declaration* Helper::declarationForName(const QString& name, const CursorInRevis
     bool findInNext = true, findBeyondUse = false, dynamicallyScoped = false;
 
     do {
-        if (auto owner = currentContext->owner()) {
+        auto owner = currentContext->owner();
+        if (owner) {
             if (auto cls = dynamic_cast<ClassDeclaration*>(owner))
                 dynamicallyScoped = cls->isDynamicallyScoped();
             else if (auto func = dynamic_cast<FunctionDeclaration*>(owner))
                 dynamicallyScoped = func->isDynamicallyScoped();
+
+            if (dynamicallyScoped) {
+                // Lookup attribute from parent, eg
+                // enamldef Parent(Base):
+                //    attr bar
+                //    Child:
+                //        x = bar # This
+                if (auto declaration = accessAttribute(owner->abstractType(), name, currentContext->topContext()))
+                    return declaration;
+            }
         }
 
         if (findInNext) {
             CursorInRevision findUntil = findBeyondUse ? currentContext->topContext()->range().end : location;
             declarations = currentContext->findDeclarations(identifier, findUntil);
-
-
             for (Declaration* declaration: declarations) {
                 if (declaration->context()->type() != DUContext::Class
                     || dynamicallyScoped
                     || (currentContext->type() == DUContext::Function && declaration->context() == currentContext->parentContext())
                 ) {
-                     // Declarations from class decls must be referenced through `self.<foo>`, except
-                     // in their local scope (handled above) or when used as default arguments for methods of the same class.
-                     // Otherwise, we're done!
+                    // Declarations from class decls must be referenced through `self.<foo>`, except
+                    // in their local scope (handled above) or when used as default arguments for methods of the same class.
+                    // Otherwise, we're done!
+                    //
+                    // In the dynamically scoped case this looks up references
+                    // enamldef Parent(Base): root:
+                    //    Child:
+                    //        x = root # This
                     return declaration;
                 }
             }
@@ -212,7 +226,7 @@ Declaration* Helper::declarationForName(const QString& name, const CursorInRevis
             }
         }
 
-        if (!findBeyondUse && currentContext->owner() && currentContext->owner()->isFunctionDeclaration()) {
+        if (!findBeyondUse && owner && owner->isFunctionDeclaration()) {
             // Names in the body may be defined after the function definition, before the function is called.
             // Note: only the parameter list has type DUContext::Function, so we have to do this instead.
             findBeyondUse = findInNext = true;
