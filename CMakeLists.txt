@@ -86,7 +86,7 @@ endif ( NOT WIN32 )
 
 # Parser options
 option(BUILD_ENAML_SUPPORT "Include parser support for enaml" ON)
-option(BUILD_CYTHON_SUPPORT "Include parser support for cython" ON)
+option(BUILD_CYTHON_SUPPORT "Include parser support for cython" OFF)
 if (BUILD_ENAML_SUPPORT)
     add_definitions(-DBUILD_ENAML_SUPPORT)
 endif()
