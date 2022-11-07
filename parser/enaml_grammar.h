@@ -98,4 +98,6 @@ public:
     }
 };
 
+#undef Py_GRAMMAR_GET
+
 }
