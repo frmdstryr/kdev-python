@@ -20,7 +20,7 @@ bool EnamlDefAst::visit(Python::AstVisitor* visitor)
 QString EnamlDefAst::dump() const
 {
     QString r;
-    r.append("EnamlDef(");
+    r.append(isRoot ? "EnamlDef(" : "ChildDef(");
     dumpNode(r, "name=", name);
     dumpNode(r, ", base=", baseClasses.size() ? baseClasses.at(0) : nullptr);
     dumpList(r, ", body=", body, ",\n  ");
@@ -28,15 +28,6 @@ QString EnamlDefAst::dump() const
     r.append(")");
     return r;
 }
-
-bool ChildDefAst::visit(Python::AstVisitor* visitor)
-{
-    visitor->visitNode(self);
-    if (identifier)
-        visitor->visitNode(identifier);
-    return false;
-}
-
 
 QString StorageExprAst::dump() const
 {

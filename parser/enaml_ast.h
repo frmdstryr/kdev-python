@@ -14,16 +14,16 @@ public:
     EnamlDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
     Python::Identifier* self = nullptr;
     Python::NameAst* identifier = nullptr;
+    bool isRoot = true;
     bool visit(Python::AstVisitor* visitor) override;
     QString dump() const override;
 };
 
-class KDEVPYTHONPARSER_EXPORT ChildDefAst: public Python::ClassDefinitionAst {
+class KDEVPYTHONPARSER_EXPORT ChildDefAst: public EnamlDefAst {
 public:
-    ChildDefAst(Python::Ast* parent): Python::ClassDefinitionAst(parent) {};
-    bool visit(Python::AstVisitor* visitor) override;
-    Python::Identifier* self = nullptr;
-    Python::NameAst* identifier = nullptr;
+    ChildDefAst(Python::Ast* parent): EnamlDefAst(parent) {
+        isRoot = false;
+    };
 };
 
 class KDEVPYTHONPARSER_EXPORT TemplateAst: public Python::ClassDefinitionAst {
