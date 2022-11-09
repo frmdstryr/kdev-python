@@ -193,16 +193,11 @@ public:
         DUContext* classContext = roots.at(0)->internalContext();
         QVERIFY(classContext);
         QVERIFY(classContext->type() == DUContext::Class);
-        //auto decls = ctx->allDeclarations(CursorInRevision::invalid(), ctx->topContext(), true);
         Declaration* d = Python::Helper::declarationForName(identifier->value, CursorInRevision::invalid(), DUChainPointer<const DUContext>(classContext));
-        /*
-        QList<Declaration*> decls = classContext->findDeclarations(QualifiedIdentifier(identifier->value));
-        if ( ! decls.length() ) {
+        if ( ! d ) {
             qCDebug(KDEV_PYTHON_DUCHAIN) << "No declaration found for" << identifier->value << "in" << node->dump();
             return;
         }
-        Declaration* d = decls.last();
-        */
         QVERIFY(d->abstractType());
         qCDebug(KDEV_PYTHON_DUCHAIN) << "found: " << identifier->value << "is" << d->abstractType()->toString() << "should be" << searchingForType;
         if ( d->abstractType()->toString().replace("__kdevpythondocumentation_builtin_", "").startsWith(searchingForType) ) {
@@ -260,7 +255,60 @@ void EnamlDUChainTest::testTypes_data()
         " checkme = Str()\n"
         "enamldef Main(Base):\n"
         " checkme = foo.bar" << "Str" << "Main";
+   QTest::newRow("binding_attr") <<
+        "enamldef Base(Window):\n"
+        " attr checkme = 1\n"
+        "enamldef Main(Base):\n"
+        " checkme = foo.bar\n" << "int" << "Main";
+    QTest::newRow("value_in_expr") <<
+        "enamldef Main(Base):\n"
+        " attr foo = 1\n"
+        " attr checkme = [foo]\n" << "list of int" << "Main";
+    // QTest::newRow("value_in_func") <<
+    //     "enamldef Main(Base):\n"
+    //     " attr foo = 1\n"
+    //     " func bar():\n"
+    //     "    checkme = foo\n" << "int" << "Main";
 
+    // QTest::newRow("value_out_of_order") <<
+    //     "enamldef Main(Base):\n"
+    //     " attr checkme = [foo]\n"
+    //     " attr foo = 1\n" << "list of int" << "Main";
+}
+
+void EnamlDUChainTest::testProblemCount()
+{
+    QFETCH(QString, code);
+    QFETCH(int, problemsCount);
+
+    ReferencedTopDUContext ctx = parse(code);
+    QVERIFY(ctx);
+
+    DUChainReadLocker lock;
+    const int n = ctx->problems().size();
+    if (n != problemsCount)
+    {
+        qDebug() << m_ast->dump();
+        Python::DumpChain().dump(ctx.data());
+    }
+    QCOMPARE(n, problemsCount);
+}
+
+void EnamlDUChainTest::testProblemCount_data()
+{
+    QTest::addColumn<QString>("code");
+    QTest::addColumn<int>("problemsCount");
+
+    QTest::newRow("correct_binding") <<
+        "class Base:\n"
+        " foo = 0\n"
+        "enamldef Main(Base):\n"
+        " foo = 1\n" << 0;
+    QTest::newRow("missing_binding") <<
+        "class Base:\n"
+        " pass\n"
+        "enamldef Main(Base):\n"
+        " foo = 1\n" << 1;
 
 }
 

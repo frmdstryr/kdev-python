@@ -38,6 +38,8 @@ class EnamlDUChainTest : public QObject
         void init();
         void testTypes();
         void testTypes_data();
+        void testProblemCount();
+        void testProblemCount_data();
     private:
         QList<KDevelop::TestFile*> createdFiles;
         QTemporaryDir testDirOwner;
