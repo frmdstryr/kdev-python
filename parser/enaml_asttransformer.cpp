@@ -240,27 +240,27 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
 
         QString name = getattr<QString>(node, "name");
         {
-            auto target = new Python::NameAst(v);
-            target->identifier = new Python::Identifier(name);
+            auto target = new Python::AttributeAst(v);
             // TODO: Depends on expr op
             target->context = Python::ExpressionAst::Context::Store;
-            target->identifier->startLine = lineno;
-            target->identifier->startCol = col_offset;
-            target->identifier->endLine = lineno;
-            target->identifier->endCol = target->identifier->startCol + name.size() - 1;
-            target->startLine = target->identifier->startLine;
-            target->startCol = target->identifier->startCol;
-            target->endLine = target->identifier->endLine;
-            target->endCol = target->identifier->endCol;
-            // auto target = new Python::AttributeAst(v);
-            // target->context = Python::ExpressionAst::Store;
-            // target->startLine = tline(getattr<int>(node, "lineno"));
-            // target->endLine = target->endLine;
-            // auto self = new Python::NameAst(target);
-            // self->identifier = new Python::Identifier("self");
-            // self->context = Python::ExpressionAst::Load;
-            // target->value = self;
-            // target->attribute = new Python::Identifier(name);
+            target->startLine = lineno;
+            target->endLine = lineno;
+            target->startCol = col_offset;
+            target->endCol = col_offset + name.size() - 1;
+            target->attribute = new Python::Identifier(name);
+            target->attribute->startLine = lineno;
+            target->attribute->endLine = lineno;
+            target->attribute->startCol = target->startCol;
+            target->attribute->endLine = target->endCol;
+            auto self = new Python::NameAst(target);
+            self->identifier = new Python::Identifier("self");
+            self->context = Python::ExpressionAst::Context::Load;
+            self->startLine = lineno;
+            self->endLine = lineno;
+            self->startCol = target->startCol;
+            self->endCol = target->endCol;
+            target->value = self;
+
             v->target = target;
         }
         {
@@ -512,18 +512,15 @@ QList<Ast*> AstTransformer::visitEnamlDefItemNode(PyObject* node, Ast* parent)
             }
         }
 
-        if (value == nullptr) {
-            auto constant = new Python::NameConstantAst(v);
-            constant->value = Python::NameConstantAst::None;
-            value = constant;
-        }
+        // if (value == nullptr) {
+        //     auto constant = new Python::NameConstantAst(v);
+        //     constant->value = Python::NameConstantAst::None;
+        //     value = constant;
+        // }
 
         {
-            PyObjectRef tp = getattr<PyObjectRef>(node, "typename"); // THIS IS A DEATH TRAP
-            if (tp == Py_None)
-                v->annotation = nullptr;
-            else
-                v->annotation = static_cast<Python::ExpressionAst*>(visitExprNode(tp, v));
+            PyObjectRef tp = getattr<PyObjectRef>(node, "typename");
+            v->annotation = static_cast<Python::ExpressionAst*>(visitExprNode(tp, v));
         }
         v->target = target;
         v->value = value;

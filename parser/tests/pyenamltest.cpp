@@ -144,6 +144,15 @@ public:
         AstDefaultVisitor::visitName(node);
     };
 
+    void visitAttribute(Python::AttributeAst* node) override {
+        QVERIFY(! node->attribute->value.isNull());
+        if (node->attribute->value == searchingForIdentifier) {
+            found = true;
+            QCOMPARE( node->attribute->range(),  searchingForRange);
+        }
+        AstDefaultVisitor::visitAttribute(node);
+    };
+
     void visitClassDefinition(Python::ClassDefinitionAst* node) override {
         QVERIFY(! node->name->value.isNull());
         if (node->name->value == searchingForIdentifier) {

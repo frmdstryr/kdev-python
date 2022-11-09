@@ -1235,6 +1235,19 @@ void DeclarationBuilder::assignToAttribute(AttributeAst* attrib, const Declarati
                                                        attrib->attribute->value, topContext());
     }
 
+    bool isSlot = false;
+#ifdef BUILD_ENAML_SUPPORT
+    if (dynamic_cast<Enaml::BindingAst*>(attrib->parent) || dynamic_cast<Enaml::ExBindingAst*>(attrib->parent)) {
+        isSlot = true;
+    }
+#endif
+
+    if ( ! attributeDeclaration && isSlot )
+    {
+        qCDebug(KDEV_PYTHON_DUCHAIN) << "Aborting creation of attribute that is slot";
+        return;
+    }
+
     if ( ! attributeDeclaration || ! wasEncountered(attributeDeclaration) ) {
         // inject a new attribute into the class type
         DUContext* previousContext = currentContext();
@@ -1385,7 +1398,6 @@ void DeclarationBuilder::visitAssignment(AssignmentAst* node)
 
 void DeclarationBuilder::visitAnnotationAssignment(AnnotationAssignmentAst* node) {
     AstDefaultVisitor::visitAnnotationAssignment(node);
-
     ExpressionVisitor v(currentContext());
     v.visitNode(node->target);
     v.visitNode(node->value);
@@ -1489,26 +1501,17 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
     if (auto n = dynamic_cast<Enaml::EnamlDefAst*>(node)) {
         // Add enaml self and identifier
         dec->setDynamicallyScoped(true);
-        DUChainWriteLocker lock;
         Declaration* obj = openDeclaration<Declaration>(n->self);
-        DeclarationBuilderBase::closeDeclaration();
         obj->setType(type);
         obj->setKind(KDevelop::Declaration::Instance);
         obj->setAutoDeclaration(true);
-        if (n->identifier)
-            assignToName(n->identifier, SourceType{type, DeclarationPointer(obj), false});
-    }
-    else if (auto n = dynamic_cast<Enaml::ChildDefAst*>(node)) {
-        // Add enaml self, parent, and identifier
-        dec->setDynamicallyScoped(true);
-        DUChainWriteLocker lock;
-        Declaration* obj = openDeclaration<Declaration>(n->self);
         DeclarationBuilderBase::closeDeclaration();
-        obj->setType(type);
-        obj->setKind(KDevelop::Declaration::Instance);
-        obj->setAutoDeclaration(true);
         if (n->identifier)
+        {
+            lock.unlock();
             assignToName(n->identifier, SourceType{type, DeclarationPointer(obj), false});
+            lock.lock();
+        }
     }
 #endif
     lock.unlock();

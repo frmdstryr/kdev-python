@@ -29,3 +29,19 @@ target_link_libraries(duchainbench
     Qt5::Test
     KDev::Tests
 )
+
+if (BUILD_ENAML_SUPPORT)
+    set(enamlduchaintest_SRCS
+        enamlduchaintest.cpp
+        ../duchaindebug.cpp)
+    ecm_add_test(${enamlduchaintest_SRCS}
+    TEST_NAME enamlduchaintest)
+    target_link_libraries(enamlduchaintest
+        kdevpythonduchain
+        kdevpythonparser
+        ${kdevpythonparser_LIBRARIES}
+        Qt5::Test
+        KDev::Tests
+    )
+
+endif()

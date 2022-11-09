@@ -20,6 +20,9 @@
 #include "parsesession.h"
 #include "pythoneditorintegrator.h"
 #include "ast.h"
+#ifdef BUILD_ENAML_SUPPORT
+#include "enaml_ast.h"
+#endif
 #include "expressionvisitor.h"
 #include "helpers.h"
 
@@ -116,13 +119,21 @@ void UseBuilder::visitAttribute(AttributeAst* node)
     RangeInRevision useRange(node->attribute->startLine, node->attribute->startCol,
                              node->attribute->endLine, node->attribute->endCol + 1);
     
+    bool isSlot = false;
+#ifdef BUILD_ENAML_SUPPORT
+    if (dynamic_cast<Enaml::BindingAst*>(node->parent))
+    {
+        isSlot = true; // Must be previously defined
+    }
+#endif
+
     DeclarationPointer declaration = v.lastDeclaration();
     DUChainWriteLocker wlock;
     if ( declaration && declaration->range() == useRange ) {
         // this is the declaration, don't build a use for it
         return;
     }
-    if ( ! declaration && v.isConfident() && ( ! v.lastType() || Helper::isUsefulType(v.lastType()) ) ) {
+    if ( ! declaration && (isSlot || v.isConfident()) && ( ! v.lastType() || Helper::isUsefulType(v.lastType()) ) ) {
         KDevelop::Problem *p = new KDevelop::Problem();
         p->setFinalLocation(DocumentRange(currentlyParsedDocument(), useRange.castToSimpleRange()));
         p->setSource(KDevelop::IProblem::SemanticAnalysis);
