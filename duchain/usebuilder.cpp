@@ -120,11 +120,10 @@ void UseBuilder::visitAttribute(AttributeAst* node)
                              node->attribute->endLine, node->attribute->endCol + 1);
     
     bool isSlot = false;
+    // TODO: Determine __slots__
 #ifdef BUILD_ENAML_SUPPORT
-    if (dynamic_cast<Enaml::BindingAst*>(node->parent))
-    {
+    if (dynamic_cast<Enaml::BindingAst*>(node->parent) || dynamic_cast<Enaml::ExBindingAst*>(node->parent))
         isSlot = true; // Must be previously defined
-    }
 #endif
 
     DeclarationPointer declaration = v.lastDeclaration();
@@ -133,7 +132,7 @@ void UseBuilder::visitAttribute(AttributeAst* node)
         // this is the declaration, don't build a use for it
         return;
     }
-    if ( ! declaration && (isSlot || v.isConfident()) && ( ! v.lastType() || Helper::isUsefulType(v.lastType()) ) ) {
+    if ( ! declaration && (isSlot || v.isConfident()) && ( isSlot || ! v.lastType() || Helper::isUsefulType(v.lastType()) ) ) {
         KDevelop::Problem *p = new KDevelop::Problem();
         p->setFinalLocation(DocumentRange(currentlyParsedDocument(), useRange.castToSimpleRange()));
         p->setSource(KDevelop::IProblem::SemanticAnalysis);
