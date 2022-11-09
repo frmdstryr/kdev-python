@@ -9,10 +9,10 @@
 namespace Enaml {
 
 void RangeFixVisitor::visitClassDefinition(Python::ClassDefinitionAst* node) {
-    if (auto n = dynamic_cast<EnamlDefAst*>(node))
-        visitEnamlDef(n);
-    else if (auto n = dynamic_cast<ChildDefAst*>(node))
+    if (auto n = dynamic_cast<ChildDefAst*>(node))
         visitChildDef(n);
+    else if (auto n = dynamic_cast<EnamlDefAst*>(node))
+        visitEnamlDef(n);
     else if (auto n = dynamic_cast<TemplateAst*>(node))
         visitTemplate(n);
     else
@@ -20,7 +20,7 @@ void RangeFixVisitor::visitClassDefinition(Python::ClassDefinitionAst* node) {
 };
 
 void RangeFixVisitor::visitFunctionDefinition(Python::FunctionDefinitionAst* node) {
-    if (dynamic_cast<EnamlDefAst*>(node->parent) || dynamic_cast<ChildDefAst*>(node->parent))
+    if (dynamic_cast<EnamlDefAst*>(node->parent))
     {
         const int asyncOffset = node->async ? indexOf(node->startLine, "async") + 5: 0;
         const bool isOverride = indexOf(node->startLine, "=>") > 0;
@@ -39,6 +39,7 @@ void RangeFixVisitor::visitFunctionDefinition(Python::FunctionDefinitionAst* nod
 
 
 void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
+    Q_ASSERT(node->isRoot);
     const int previousLength = node->name->endCol - node->name->startCol;
     const int i = firstNonSpace(node, 9);
     node->name->startCol = i;
@@ -79,6 +80,7 @@ void RangeFixVisitor::visitEnamlDef(EnamlDefAst* node) {
 }
 
 void RangeFixVisitor::visitChildDef(ChildDefAst* node) {
+    Q_ASSERT(!node->isRoot);
     const int previousLength = node->name->endCol - node->name->startCol;
     const int startCol = firstNonSpace(node);
     node->name->startCol = startCol;
@@ -117,7 +119,7 @@ void RangeFixVisitor::visitTemplate(TemplateAst* node) {
 void RangeFixVisitor::visitAssignment(Python::AssignmentAst* node)
 {
     // Eg the name part of `enamldef Type(Base): name:` or `ChildDef: name:`
-    if (dynamic_cast<EnamlDefAst*>(node->parent) || dynamic_cast<ChildDefAst*>(node->parent))
+    if (dynamic_cast<EnamlDefAst*>(node->parent))
     {
         if (auto target = dynamic_cast<Python::NameAst*>(node->targets.at(0))) {
             const int offset = indexOf(node->startLine, ":");
@@ -242,7 +244,7 @@ void RangeFixVisitor::visitBinding(BindingAst* node)
 int RangeFixVisitor::firstNonSpace(Python::Ast* node, int offset)
 {
     const int lineno = node->startLine;
-    if (lineno < 0 || lineno > lines.size())
+    if (lineno < 0 || lineno >= lines.size())
     {
         qWarning() << "Node start line is invalid: " << node->dump();
         return -1;
@@ -261,7 +263,7 @@ int RangeFixVisitor::firstNonSpace(Python::Ast* node, int offset)
 
 int RangeFixVisitor::indexOf(int lineno, const QString&pattern, int offset)
 {
-    if (lineno < 0 || lineno > lines.size())
+    if (lineno < 0 || lineno >= lines.size())
         return -1;
     const QString &line = lines.at(lineno);
     auto parts = line.split("#");
