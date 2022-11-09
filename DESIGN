@@ -24,3 +24,28 @@ reported to the user.
 The DUChain Library
 -------------------
 See https://api.kde.org/extragear-api/kdevelop-apidocs/kdevelop/kdevplatform/language/duchain/html/duchain-design.html
+
+
+Parsing Overview
+----------------
+
+1. KDevelop calls `ParseJob::run()` on the document. See [pythonparsejob.cpp](pythonparsejob.cpp).
+2. The parse job creates a ParseSession and calls `ParseSession::parse`. See [parser/parsesession.cpp](parser/parsesession.cpp).
+3. This calls `AstBuilder::parse` which creates and calls `Python::Parser::parse()` from [parser/python_parser.h](parser/python_parser.h).
+4. This invokes python's `ast.parse(source)` and returns the result as a `PyObject* syntaxtree`.
+5. Then the AstBuilder invokes the [Python::AstTransformer](parser/python_asttransformer.cpp) on the python syntaxtree and converts it into nodes from [parser/ast.h](parser/ast.h)
+6. The AstBuilder then calls `Python::Parser::fixRanges` that runs the [RangeFixVisitor](parser/rangefixvisitor.cpp) on the converted ast.
+7. The ParseJob then creates a [DeclarationBuilder](duchain/declarationbuilder.cpp) and calls `DeclarationBuilder::build()` on the document and ast
+8. This creates and opens a `TopDUContext` and calls [ContextBuilder::startVisiting](duchain/contextbuilder.cpp) on the ast module.
+9. As it is visitng nodes it calls the contextbuilder's visit to set the context (eg inside class, or inside a function),
+   then builds declarations for classes, functions, variables, etc
+10. The ParseJob then creates a [UseBuilder](duchain/usebuilder.cpp) and calls `UseBuilder::buildUses()` on the ast
+11. The ParseJob then runs highlghting
+
+
+Testing
+-------
+
+Build with `BUILD_TESTING` on and run tests in `build/bin/`.
+
+Set `export QT_LOGGING_RULES="*.debug=true"` to show more detailed debug logging.
