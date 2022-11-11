@@ -421,7 +421,7 @@ QString DeclarationBuilder::buildModuleNameFromNode(ImportFromAst* node, AliasAs
         moduleName.prepend('.').prepend(node->module->value);
     }
     // To handle relative imports correctly, add node level in the beginning of the path
-    // This will allow findModulePath to deduce module search direcotry properly
+    // This will allow findModulePath to deduce module search directory properly
     moduleName.prepend(QString(node->level, '.'));
     return moduleName;
 }
@@ -693,9 +693,7 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
     lock.unlock();
     Declaration* resultingDeclaration = nullptr;
     if ( ! moduleInfo.first.isValid() ) {
-        // The file was not found -- this is either an error in the user's code,
-        // a missing module, or a C module (.so) which is unreadable for kdevelop
-        // TODO imrpove error handling in case the module exists as a shared object or .pyc file only
+        // The file was not found -- this is either an error in the user's code a missing module
         qCDebug(KDEV_PYTHON_DUCHAIN) << "invalid or non-existent URL:" << moduleInfo;
         KDevelop::Problem *p = new Python::MissingIncludeProblem(moduleName, currentlyParsedDocument());
         p->setFinalLocation(DocumentRange(currentlyParsedDocument(), range.castToSimpleRange()));
@@ -706,6 +704,20 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
         problemEncountered = p;
         return nullptr;
     }
+    else if ( moduleInfo.first.toString().endsWith(".so") ) {
+        // Do not show a not found error, it is a C module (.so) which is not
+        // readable by kdevelop
+        qCDebug(KDEV_PYTHON_DUCHAIN) << "c extensions cannot be parsed:" << moduleInfo;
+        KDevelop::Problem *p = new KDevelop::Problem();
+        p->setFinalLocation(DocumentRange(currentlyParsedDocument(), range.castToSimpleRange()));
+        p->setSource(KDevelop::IProblem::SemanticAnalysis);
+        p->setSeverity(KDevelop::IProblem::Hint);
+        p->setDescription(i18n("Extensions cannot be analyzed by KDevelop"));
+        m_missingModules.append(IndexedString(moduleName));
+        problemEncountered = p;
+        return nullptr;
+    }
+
     if ( ! moduleContext ) {
         // schedule the include file for parsing, and schedule the current one for reparsing after that is done
         qCDebug(KDEV_PYTHON_DUCHAIN) << "No module context, recompiling";
