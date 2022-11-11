@@ -33,6 +33,7 @@
 #include <interfaces/iprojectcontroller.h>
 #include <interfaces/iproject.h>
 #include <project/projectmodel.h>
+#include <qdiriterator.h>
 
 using namespace KDevelop;
 
@@ -365,24 +366,33 @@ QPair<QUrl, QStringList> ContextBuilder::findModulePath(const QString& name, con
                 ,".enaml"
 #endif
             };
-            foreach ( const auto& extension, valid_extensions ) {
-                QFile sourcefile(testFilename + extension);
-                if ( ! dir_exists || leftNameComponents.isEmpty() ) {
+            if ( ! dir_exists || leftNameComponents.isEmpty() ) {
+                foreach ( const auto& extension, valid_extensions ) {
+                    QFile sourcefile(testFilename + extension);
                     // If the search cannot continue further down into a hierarchy of directories,
                     // the file matching the next name component will be returned,
                     // toegether with a list of names which must be resolved inside that file.
                     if ( sourcefile.exists() ) {
-                        auto sourceUrl = QUrl::fromLocalFile(testFilename + extension);
+                        auto sourceUrl = QUrl::fromLocalFile(sourcefile.fileName());
                         // TODO QUrl: cleanPath?
                         return qMakePair(sourceUrl, leftNameComponents);
                     }
-                    else if ( dir_exists ) {
-                        auto path = QUrl::fromLocalFile(testFilename + "/__init__.py");
-                        // TODO QUrl: cleanPath?
-                        return qMakePair(path, leftNameComponents);
-                    }
+                }
+
+                // Look for extensions
+                QDirIterator extIter(tmp.path(), QStringList() << component + "*.so", QDir::Files);
+                if ( extIter.hasNext() ) {
+                    auto path = QUrl::fromLocalFile(extIter.next());
+                    return qMakePair(path, leftNameComponents);
+                }
+
+                if ( dir_exists ) {
+                    auto path = QUrl::fromLocalFile(testFilename + "/__init__.py");
+                    // TODO QUrl: cleanPath?
+                    return qMakePair(path, leftNameComponents);
                 }
             }
+
             if ( ! can_continue ) {
                 // if not returned yet and the cd into the next component failed,
                 // abort and try the next search path.
