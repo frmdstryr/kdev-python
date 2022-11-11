@@ -1050,14 +1050,15 @@ void DeclarationBuilder::addArgumentTypeHints(CallAst* node, DeclarationPointer 
             addType->setCreatedBy(topContext(), m_futureModificationRevision);
             closeType();
             for (int ip = currentParamIndex; ip < paramsAvailable; ++ip ) {
-                if ( parameters.at(ip)->identifier().toString() != keyword->argumentName->value ) {
+                auto param = parameters.at(ip);
+                if ( !param || param->identifier().toString() != keyword->argumentName->value ) {
                     continue;
                 }
                 matchedNamedParam = true;
-                auto newType = Helper::mergeTypes(parameters.at(ip)->abstractType(), addType);
+                auto newType = Helper::mergeTypes(param->abstractType(), addType);
                 functionType->removeArgument(ip);
                 functionType->addArgument(newType, ip);
-                parameters.at(ip)->setType(newType);
+                param->setType(newType);
             }
         }
         else if ( auto unpackedDict = argumentVisitor.lastType().dynamicCast<MapType>() ) {
