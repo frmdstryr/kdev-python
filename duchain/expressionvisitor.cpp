@@ -475,8 +475,12 @@ void ExpressionVisitor::visitListComprehension(ListComprehensionAst* node)
     if ( type && ! m_forceGlobalSearching ) { // TODO fixme
         DUContext* comprehensionContext = context()->findContextAt(CursorInRevision(node->startLine, node->startCol), true);
         lock.unlock();
+        if (!comprehensionContext)
+        {
+            qCDebug(KDEV_PYTHON_DUCHAIN) << "Invalid context " << node->dump();
+            return encounterUnknown();
+        }
         ExpressionVisitor v(this, comprehensionContext);
-        Q_ASSERT(comprehensionContext);
         v.visitNode(node->element);
         if ( v.lastType() ) {
             type->addContentType<Python::UnsureType>(v.lastType());
