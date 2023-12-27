@@ -25,7 +25,7 @@ generate_export_header(kdevpythonparser EXPORT_MACRO_NAME KDEVPYTHONPARSER_EXPOR
 
 target_link_libraries(kdevpythonparser LINK_PRIVATE
     KDev::Language
-    Qt5::Core
+    Qt${QT_MAJOR_VERSION}::Core
     ${PYTHON_LIBRARIES}
 )
 
