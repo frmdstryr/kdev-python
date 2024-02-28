@@ -1051,7 +1051,7 @@ void DeclarationBuilder::addArgumentTypeHints(CallAst* node, DeclarationPointer 
             closeType();
             for (int ip = currentParamIndex; ip < paramsAvailable; ++ip ) {
                 auto param = parameters.at(ip);
-                if ( !param || param->identifier().toString() != keyword->argumentName->value ) {
+                if ( !param || !param->identifier() || param->identifier().toString() != keyword->argumentName->value ) {
                     continue;
                 }
                 matchedNamedParam = true;
