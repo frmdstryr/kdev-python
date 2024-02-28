@@ -72,6 +72,7 @@ find_package(KF5 ${KF5_DEP_VERSION} REQUIRED
     ThreadWeaver
     TextEditor
 )
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/projects/kdevelop/kdevplatform")
 find_package(KDevPlatform ${KDEVPLATFORM_VERSION} CONFIG REQUIRED)
 find_package(KDevelop ${KDEVPLATFORM_VERSION} REQUIRED)
 
