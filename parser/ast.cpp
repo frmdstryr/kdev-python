@@ -13,14 +13,42 @@
 namespace Python
 {
 
-static void dumpNode(QString &r, QString prefix, const Ast* node)
+void Ast::dumpNode(QString &r, const QString &prefix, const Ast* node)
 {
     r.append(prefix);
     r.append(node ? node->dump(): QStringLiteral("None"));
 }
 
+void Ast::dumpRange(QString &r, const QString &prefix, const Ast* node)
+{
+    r.append(prefix);
+    r.append(QStringLiteral("("));
+    r.append(QString::fromLatin1("%1").arg(node->startLine));
+    r.append(QStringLiteral(", "));
+    r.append(QString::fromLatin1("%1").arg(node->startCol));
+    r.append(QStringLiteral(", "));
+    r.append(QString::fromLatin1("%1").arg(node->endLine));
+    r.append(QStringLiteral(", "));
+    r.append(QString::fromLatin1("%1").arg(node->endCol));
+    r.append(QStringLiteral(")"));
+}
 
-static void dumpContext(QString &r, QString prefix, ExpressionAst::Context context)
+template<class T>
+void Ast::dumpList(QString &r, const QString &prefix, const T list, QString sep)
+{
+    int i = 0;
+    r.append(prefix);
+    r.append(QStringLiteral("["));
+    for(const Ast* node: list) {
+        i += 1;
+        dumpNode(r, QStringLiteral(""), node);
+        if (i < list.size())
+            r.append(sep);
+    }
+    r.append(QStringLiteral("]"));
+}
+
+static void dumpContext(QString &r, const QString &prefix, ExpressionAst::Context context)
 {
     r.append(prefix);
     switch(context) {
@@ -38,7 +66,7 @@ static void dumpContext(QString &r, QString prefix, ExpressionAst::Context conte
     }
 }
 
-static void dumpOperator(QString &r, QString prefix, Ast::OperatorTypes op)
+static void dumpOperator(QString &r, const QString &prefix, Ast::OperatorTypes op)
 {
     r.append(prefix);
     switch(op) {
@@ -78,21 +106,6 @@ static void dumpOperator(QString &r, QString prefix, Ast::OperatorTypes op)
         default:
             r.append(QStringLiteral("Invalid"));
     }
-}
-
-template<class T>
-static void dumpList(QString &r, QString prefix, const T list, QString sep=QStringLiteral(", "))
-{
-    int i = 0;
-    r.append(prefix);
-    r.append(QLatin1Char('['));
-    for (const Ast* node : list) {
-        i += 1;
-        dumpNode(r, QString(), node);
-        if (i < list.size())
-            r.append(sep);
-    }
-    r.append(QLatin1Char(']'));
 }
 
 // We never need actual constructors for AST nodes, but it seems to be required, at least for some platforms
@@ -341,11 +354,6 @@ QString SliceAst::dump() const
 }
 
 DictionaryComprehensionAst::DictionaryComprehensionAst(Ast* parent): ExpressionAst(parent, Ast::DictionaryComprehensionAstType), key(nullptr), value(nullptr)
-{
-    
-}
-
-ExceptionHandlerAst::ExceptionHandlerAst(Ast* parent): Ast(parent, Ast::ExceptionHandlerAstType), type(nullptr), name(nullptr)
 {
     
 }
@@ -815,11 +823,6 @@ QString YieldAst::dump() const
     return r;
 }
 
-
-AliasAst::AliasAst(Ast* parent): Ast(parent, Ast::AliasAstType), name(nullptr), asName(nullptr)
-{
-    
-}
 
 QString AliasAst::dump() const
 {

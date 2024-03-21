@@ -88,7 +88,11 @@ find_package(KF${KF_MAJOR_VERSION} ${KF_MIN_VERSION} REQUIRED
 if(QT_MAJOR_VERSION STREQUAL 6)
     find_package(Qt6Core5Compat ${QT_MIN_VERSION} CONFIG REQUIRED)
     find_package(KF6TextWidgets ${KF_MIN_VERSION} CONFIG REQUIRED)
-    endif()
+    find_package(KF6KCMUtils ${KF_MIN_VERSION} CONFIG REQUIRED)
+    include_directories(
+        "/usr/include/KF6/KCMUtils"
+        "/usr/include/KF6/KCMUtilsCore")
+endif()
 
 if(NOT CMAKE_VERSION VERSION_LESS "3.10.0" AND KF5_VERSION VERSION_LESS "5.42.0")
     # Avoids bogus warnings with CMake 3.10+, KF5.42+ has workaround
@@ -98,6 +102,15 @@ endif()
 if ( NOT WIN32 )
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wfatal-errors -Wall")
 endif ( NOT WIN32 )
+
+option(BUILD_ENAML_SUPPORT "Include parser support for enaml" ON)
+option(BUILD_CYTHON_SUPPORT "Include parser support for cython" OFF)
+if (BUILD_ENAML_SUPPORT)
+    add_definitions(-DBUILD_ENAML_SUPPORT)
+endif()
+if (BUILD_CYTHON_SUPPORT)
+    add_definitions(-DBUILD_CYTHON_SUPPORT)
+endif()
 
 # then, build the plugin
 include_directories(

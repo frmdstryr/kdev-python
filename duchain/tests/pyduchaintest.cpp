@@ -708,6 +708,15 @@ public:
             }
         }
     }
+    void visitImportFrom(ImportFromAst* node) override {
+        if ( node->module) {
+            qDebug() << "found import from" << node->module->value << node->module->range();
+        }
+        if ( node->module && node->module->value == searchingForIdentifier && node->module->range() == searchingForRange ) {
+            found = true;
+            return;
+        }
+    }
 };
 
 void PyDUChainTest::testRanges()
@@ -782,6 +791,7 @@ void PyDUChainTest::testRanges_data()
     QTest::newRow("import") << "import sys" << 1 << ( QStringList() << QStringLiteral("7,10,sys") );
     QTest::newRow("import2") << "import i.localvar1" << 1 << ( QStringList() << QStringLiteral("7,18,i.localvar1") );
     QTest::newRow("import3") << "import sys as a" << 1 << ( QStringList() << QStringLiteral("13,14,a") );
+    QTest::newRow("importfrom") << "from foo import bar" << 1 << ( QStringList() << QStringLiteral("5,7,foo"));
 }
 
 class TypeTestVisitor : public AstDefaultVisitor {
@@ -1599,7 +1609,7 @@ void PyDUChainTest::testInheritance()
     bool classDeclFound = false;
     for ( const p& item : decls ) {
         if ( item.first->identifier().toString() == QStringLiteral("B") ) {
-            auto klass = dynamic_cast<ClassDeclaration*>(item.first);
+            auto klass = dynamic_cast<Python::ClassDeclaration*>(item.first);
             QVERIFY(klass);
             QCOMPARE(klass->baseClassesSize(), static_cast<unsigned int>(expectedBaseClasses));
             classDeclFound = true;

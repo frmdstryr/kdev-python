@@ -34,6 +34,8 @@
 #include <interfaces/iproject.h>
 #include <project/projectmodel.h>
 
+#include <qdiriterator.h>
+
 using namespace KDevelop;
 
 using namespace KTextEditor;
@@ -356,25 +358,36 @@ QPair<QUrl, QStringList> ContextBuilder::findModulePath(const QString& name, con
 
             // we can only parse those, so we don't care about anything else for now.
             // Any C modules (.so, .dll) will be ignored, and highlighted as "not found". TODO fix this
-            static QStringList valid_extensions{QStringLiteral(".py"), QStringLiteral(".pyx")};
-            for ( const auto& extension : valid_extensions ) {
-                QFile sourcefile(testFilename + extension);
-                if ( ! dir_exists || leftNameComponents.isEmpty() ) {
-                    // If the search cannot continue further down into a hierarchy of directories,
-                    // the file matching the next name component will be returned,
-                    // toegether with a list of names which must be resolved inside that file.
-                    if ( sourcefile.exists() ) {
-                        auto sourceUrl = QUrl::fromLocalFile(testFilename + extension);
-                        // TODO QUrl: cleanPath?
-                        return qMakePair(sourceUrl, leftNameComponents);
-                    }
-                    else if ( dir_exists ) {
-                        auto path = QUrl::fromLocalFile(testFilename + QStringLiteral("/__init__.py"));
-                        // TODO QUrl: cleanPath?
-                        return qMakePair(path, leftNameComponents);
+            static QStringList valid_extensions{QStringLiteral(".py"), QStringLiteral(".pyx"), QStringLiteral(".enaml")};
+            if ( ! dir_exists || leftNameComponents.isEmpty() ) {
+                for ( const auto& extension : valid_extensions ) {
+                    QFile sourcefile(testFilename + extension);
+                    if ( ! dir_exists || leftNameComponents.isEmpty() ) {
+                        // If the search cannot continue further down into a hierarchy of directories,
+                        // the file matching the next name component will be returned,
+                        // toegether with a list of names which must be resolved inside that file.
+                        if ( sourcefile.exists() ) {
+                            auto sourceUrl = QUrl::fromLocalFile(testFilename + extension);
+                            // TODO QUrl: cleanPath?
+                            return qMakePair(sourceUrl, leftNameComponents);
+                        }
                     }
                 }
             }
+
+            // Look for extensions
+            QDirIterator extIter(tmp.path(), QStringList() << component + QStringLiteral("*.so"), QDir::Files);
+            if ( extIter.hasNext() ) {
+                auto path = QUrl::fromLocalFile(extIter.next());
+                return qMakePair(path, leftNameComponents);
+            }
+
+            if ( dir_exists ) {
+                auto path = QUrl::fromLocalFile(testFilename + QStringLiteral("/__init__.py"));
+                // TODO QUrl: cleanPath?
+                return qMakePair(path, leftNameComponents);
+            }
+
             if ( ! can_continue ) {
                 // if not returned yet and the cd into the next component failed,
                 // abort and try the next search path.

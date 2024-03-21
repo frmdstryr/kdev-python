@@ -160,6 +160,12 @@ void RangeFixVisitor::visitImport(ImportAst* node) {
     }
 };
 
+// Parser seems to set the start col to zero
+void RangeFixVisitor::visitImportFrom(ImportFromAst* node) {
+    cutDefinitionPreamble(node->module, QStringLiteral("from"));
+    AstDefaultVisitor::visitImportFrom(node);
+};
+
 // alias for exceptions (except FooBarException as somethingterriblehappened: ...)
 void RangeFixVisitor::visitExceptionHandler(ExceptionHandlerAst* node) {
     AstDefaultVisitor::visitExceptionHandler(node);

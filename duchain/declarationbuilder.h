@@ -15,6 +15,7 @@
 #include <QList>
 
 #include "contextbuilder.h"
+#include "declarations/classdeclaration.h"
 #include "declarations/functiondeclaration.h"
 #include "ast.h"
 

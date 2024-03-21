@@ -38,6 +38,7 @@ namespace Python {
     class ExpressionAst;
     class StatementAst;
     class Ast;
+    class AstVisitor;
     class ExceptionHandlerAst;
     class AliasAst;
     class ComprehensionAst;
@@ -231,30 +232,37 @@ public:
         return false;
     }
 
-    virtual QString dump() const
+    static QString dump(const Ast *node)
     {
+        if (!node) return QStringLiteral("nullptr");
         QString r = QStringLiteral("Ast(astType=");
-        r.append(QString::number(astType));
-        r.append(QStringLiteral(", startLine="));
-        r.append(QString::number(startLine));
-        r.append(QStringLiteral(", startCol="));
-        r.append(QString::number(startCol));
-        r.append(QStringLiteral(", endCol="));
-        r.append(QString::number(endCol));
-        r.append(QStringLiteral(", endLine="));
-        r.append(QString::number(endLine));
+        r.append(QString::fromLatin1("%1").arg(node->astType));
+        Ast::dumpRange(r, QStringLiteral(", range="), node);
         r.append(QStringLiteral(")"));
         return r;
+    }
+
+    virtual QString dump() const { return Ast::dump(this); }
+    static void dumpRange(QString &r,const QString &prefix, const Ast* node);
+    static void dumpNode(QString &r, const QString &prefix, const Ast* node);
+    template<class T>
+    static void dumpList(QString &r, const QString &prefix, const T list, QString sep=QStringLiteral(", "));
+
+    // Override to hook custom Ast nodes into the default visitor.
+    // return true to prevent default handling for the ast type
+    virtual bool visit(AstVisitor* visitor) {
+        Q_UNUSED(visitor);
+        return false;
     };
 
-    int startCol;
-    int startLine;
-    int endCol;
-    int endLine;
+    int startCol = 0;
+    int startLine = 0;
+    int endCol = 0;
+    int endLine = 0;
     
-    bool hasUsefulRangeInformation;
+    bool hasUsefulRangeInformation = false;
     
-    KDevelop::DUContext* context;
+    KDevelop::DUContext* context = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT Identifier : public Ast {
@@ -284,7 +292,7 @@ public:
     ~CodeAst();
     typedef QSharedPointer<CodeAst> Ptr;
     QList<Ast*> body;
-    Identifier* name; // module name
+    Identifier* name = nullptr; // module name
     QString dump() const override;
 
 };
@@ -298,19 +306,19 @@ public:
 class KDEVPYTHONPARSER_EXPORT FunctionDefinitionAst : public StatementAst {
 public:
     FunctionDefinitionAst(Ast* parent);
-    Identifier* name;
-    ArgumentsAst* arguments;
+    Identifier* name = nullptr;
+    ArgumentsAst* arguments = nullptr;
     QList<ExpressionAst*> decorators;
     QList<Ast*> body;
     ExpressionAst* returns;
-    bool async;
+    bool async = false;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT ClassDefinitionAst : public StatementAst {
 public:
     ClassDefinitionAst(Ast* parent);
-    Identifier* name;
+    Identifier* name = nullptr;
     QList<ExpressionAst*> baseClasses;
     QList<Ast*> body;
     QList<ExpressionAst*> decorators;
@@ -320,7 +328,7 @@ public:
 class KDEVPYTHONPARSER_EXPORT ReturnAst : public StatementAst {
 public:
     ReturnAst(Ast* parent);
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
@@ -335,43 +343,43 @@ class KDEVPYTHONPARSER_EXPORT AssignmentAst : public StatementAst {
 public:
     AssignmentAst(Ast* parent);
     QList<ExpressionAst*> targets;
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT AugmentedAssignmentAst : public StatementAst {
 public:
     AugmentedAssignmentAst(Ast* parent);
-    ExpressionAst* target;
-    Ast::OperatorTypes op;
-    ExpressionAst* value;
+    ExpressionAst* target = nullptr;
+    Ast::OperatorTypes op = Ast::OperatorInvalid;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT AnnotationAssignmentAst : public StatementAst {
 public:
     AnnotationAssignmentAst(Ast* parent);
-    ExpressionAst* target;
-    ExpressionAst* value;
-    ExpressionAst* annotation;
+    ExpressionAst* target = nullptr;
+    ExpressionAst* value = nullptr;
+    ExpressionAst* annotation = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT ForAst : public StatementAst {
 public:
     ForAst(Ast* parent);
-    ExpressionAst* target;
-    ExpressionAst* iterator;
+    ExpressionAst* target = nullptr;
+    ExpressionAst* iterator = nullptr;
     QList<Ast*> body;
     QList<Ast*> orelse;
-    bool async;
+    bool async = false;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT WhileAst : public StatementAst {
 public:
     WhileAst(Ast* parent);
-    ExpressionAst* condition;
+    ExpressionAst* condition = nullptr;
     QList<Ast*> body;
     QList<Ast*> orelse;
     QString dump() const override;
@@ -380,7 +388,7 @@ public:
 class KDEVPYTHONPARSER_EXPORT IfAst : public StatementAst {
 public:
     IfAst(Ast* parent);
-    ExpressionAst* condition;
+    ExpressionAst* condition = nullptr;
     QList<Ast*> body;
     QList<Ast*> orelse;
     QString dump() const override;
@@ -389,8 +397,8 @@ public:
 class KDEVPYTHONPARSER_EXPORT WithItemAst : public Ast {
 public:
     WithItemAst(Ast* parent);
-    ExpressionAst* contextExpression;
-    ExpressionAst* optionalVars;
+    ExpressionAst* contextExpression = nullptr;
+    ExpressionAst* optionalVars = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT WithAst : public StatementAst {
@@ -398,14 +406,14 @@ public:
     WithAst(Ast* parent);
     QList<Ast*> body;
     QList<WithItemAst*> items;
-    bool async;
+    bool async = false;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT RaiseAst : public StatementAst {
 public:
     RaiseAst(Ast* parent);
-    ExpressionAst* type;
+    ExpressionAst* type = nullptr;
     // TODO check what the other things in the grammar actually are and add them
     QString dump() const override;
 };
@@ -423,8 +431,8 @@ public:
 class KDEVPYTHONPARSER_EXPORT AssertionAst : public StatementAst {
 public:
     AssertionAst(Ast* parent);
-    ExpressionAst* condition;
-    ExpressionAst* message;
+    ExpressionAst* condition = nullptr;
+    ExpressionAst* message = nullptr;
     QString dump() const override;
 };
 
@@ -447,9 +455,9 @@ public:
 class KDEVPYTHONPARSER_EXPORT ImportFromAst : public StatementAst {
 public:
     ImportFromAst(Ast* parent);
-    Identifier* module;
+    Identifier* module = nullptr;
     QList<AliasAst*> names;
-    int level;
+    int level = 0;
     QString dump() const override;
 };
 
@@ -497,7 +505,7 @@ public:
         Delete = 3, // the object is deleted
         Invalid = -1
     };
-    ExpressionAst* value; // WARNING this is not set in most cases!
+    ExpressionAst* value = nullptr; // WARNING this is not set in most cases!
 };
 
 class KDEVPYTHONPARSER_EXPORT ConstantAst : public ExpressionAst {
@@ -509,38 +517,38 @@ public:
 class KDEVPYTHONPARSER_EXPORT AssignmentExpressionAst : public ExpressionAst {
 public:
     AssignmentExpressionAst(Ast* parent);
-    ExpressionAst* target;
-    ExpressionAst* value;
+    ExpressionAst* target = nullptr;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT AwaitAst : public ExpressionAst {
 public:
     AwaitAst(Ast* parent);
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT YieldFromAst : public ExpressionAst {
 public:
     YieldFromAst(Ast* parent);
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT BooleanOperationAst : public ExpressionAst {
 public:
     BooleanOperationAst(Ast* parent);
-    Ast::BooleanOperationTypes type;
+    Ast::BooleanOperationTypes type = Ast::BooleanInvalidOperation;
     QList<ExpressionAst*> values;
 };
 
 class KDEVPYTHONPARSER_EXPORT BinaryOperationAst : public ExpressionAst {
 public:
     BinaryOperationAst(Ast* parent);
-    Ast::OperatorTypes type;
-    ExpressionAst* lhs;
-    ExpressionAst* rhs;
+    Ast::OperatorTypes type  = Ast::OperatorInvalid;
+    ExpressionAst* lhs = nullptr;
+    ExpressionAst* rhs = nullptr;
     inline QString methodName() const {
         switch ( type ) {
             case Python::Ast::OperatorAdd: return QLatin1String("__add__");
@@ -576,8 +584,8 @@ public:
 class KDEVPYTHONPARSER_EXPORT UnaryOperationAst : public ExpressionAst {
 public:
     UnaryOperationAst(Ast* parent);
-    Ast::UnaryOperatorTypes type;
-    ExpressionAst* operand;
+    Ast::UnaryOperatorTypes type = Ast::UnaryOperatorInvalid;
+    ExpressionAst* operand = nullptr;
 
     QString dump() const override;
 };
@@ -585,16 +593,16 @@ public:
 class KDEVPYTHONPARSER_EXPORT LambdaAst : public ExpressionAst {
 public:
     LambdaAst(Ast* parent);
-    ArgumentsAst* arguments;
-    ExpressionAst* body;
+    ArgumentsAst* arguments = nullptr;
+    ExpressionAst* body = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT IfExpressionAst : public ExpressionAst {
 public:
     IfExpressionAst(Ast* parent);
-    ExpressionAst* condition;
-    ExpressionAst* body;
-    ExpressionAst* orelse;
+    ExpressionAst* condition = nullptr;
+    ExpressionAst* body = nullptr;
+    ExpressionAst* orelse = nullptr;
     QString dump() const override;
 };
 
@@ -616,36 +624,36 @@ public:
 class KDEVPYTHONPARSER_EXPORT ListComprehensionAst : public ExpressionAst {
 public:
     ListComprehensionAst(Ast* parent);
-    ExpressionAst* element;
+    ExpressionAst* element = nullptr;
     QList<ComprehensionAst*> generators;
 };
 
 class KDEVPYTHONPARSER_EXPORT SetComprehensionAst : public ExpressionAst {
 public:
     SetComprehensionAst(Ast* parent);
-    ExpressionAst* element;
+    ExpressionAst* element = nullptr;
     QList<ComprehensionAst*> generators;
 };
 
 class KDEVPYTHONPARSER_EXPORT DictionaryComprehensionAst : public ExpressionAst {
 public:
     DictionaryComprehensionAst(Ast* parent);
-    ExpressionAst* key;
-    ExpressionAst* value;
+    ExpressionAst* key = nullptr;
+    ExpressionAst* value = nullptr;
     QList<ComprehensionAst*> generators;
 };
 
 class KDEVPYTHONPARSER_EXPORT GeneratorExpressionAst : public ExpressionAst {
 public:
     GeneratorExpressionAst(Ast* parent);
-    ExpressionAst* element;
+    ExpressionAst* element = nullptr;
     QList<ComprehensionAst*> generators;
 };
 
 class KDEVPYTHONPARSER_EXPORT CompareAst : public ExpressionAst {
 public:
     CompareAst(Ast* parent);
-    ExpressionAst* leftmostElement;
+    ExpressionAst* leftmostElement = nullptr;
     QList<ComparisonOperatorTypes> operators;
     QList<ExpressionAst*> comparands;
 };
@@ -654,7 +662,7 @@ public:
 class KDEVPYTHONPARSER_EXPORT ReprAst : public ExpressionAst {
 public:
     ReprAst(Ast* parent);
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT NumberAst : public ConstantAst {
@@ -682,9 +690,9 @@ public:
 class KDEVPYTHONPARSER_EXPORT FormattedValueAst : public ExpressionAst {
 public:
     FormattedValueAst(Ast* parent);
-    ExpressionAst* value;
-    int conversion;
-    ExpressionAst* formatSpec;
+    ExpressionAst* value = nullptr;
+    int conversion = 0;
+    ExpressionAst* formatSpec = nullptr;
 };
 
 class KDEVPYTHONPARSER_EXPORT BytesAst : public ConstantAst {
@@ -696,15 +704,15 @@ public:
 class KDEVPYTHONPARSER_EXPORT YieldAst : public ExpressionAst {
 public:
     YieldAst(Ast* parent);
-    ExpressionAst* value;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT NameAst : public ExpressionAst {
 public:
     NameAst(Ast* parent);
-    Identifier* identifier;
-    ExpressionAst::Context context;
+    Identifier* identifier = nullptr;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
     QString dump() const override;
 };
 
@@ -724,7 +732,7 @@ public:
 class KDEVPYTHONPARSER_EXPORT CallAst : public ExpressionAst {
 public:
     CallAst(Ast* parent);
-    ExpressionAst* function;
+    ExpressionAst* function = nullptr;
     QList<ExpressionAst*> arguments;
     QList<KeywordAst*> keywords;
     QString dump() const override;
@@ -733,27 +741,27 @@ public:
 class KDEVPYTHONPARSER_EXPORT AttributeAst : public ExpressionAst {
 public:
     AttributeAst(Ast* parent);
-    ExpressionAst* value;
-    Identifier* attribute;
-    ExpressionAst::Context context;
-    int depth;
+    ExpressionAst* value = nullptr;
+    Identifier* attribute = nullptr;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
+    int depth = 0;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT SubscriptAst : public ExpressionAst {
 public:
     SubscriptAst(Ast* parent);
-    ExpressionAst* value;
-    ExpressionAst* slice;
-    ExpressionAst::Context context;
+    ExpressionAst* value = nullptr;
+    ExpressionAst* slice = nullptr;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT StarredAst : public ExpressionAst {
 public:
     StarredAst(Ast* parent);
-    ExpressionAst* value;
-    ExpressionAst::Context context;
+    ExpressionAst* value = nullptr;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
     QString dump() const override;
 };
 
@@ -761,7 +769,7 @@ class KDEVPYTHONPARSER_EXPORT ListAst : public ExpressionAst {
 public:
     ListAst(Ast* parent);
     QList<ExpressionAst*> elements;
-    ExpressionAst::Context context;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
     QString dump() const override;
 };
 
@@ -769,7 +777,7 @@ class KDEVPYTHONPARSER_EXPORT TupleAst : public ExpressionAst {
 public:
     TupleAst(Ast* parent);
     QList<ExpressionAst*> elements;
-    ExpressionAst::Context context;
+    ExpressionAst::Context context = ExpressionAst::Context::Invalid;
     QString dump() const override;
 };
 
@@ -782,9 +790,9 @@ public:
 class KDEVPYTHONPARSER_EXPORT SliceAst : public ExpressionAst {
 public:
     SliceAst(Ast* parent);
-    ExpressionAst* lower;
-    ExpressionAst* upper;
-    ExpressionAst* step;
+    ExpressionAst* lower = nullptr;
+    ExpressionAst* upper = nullptr;
+    ExpressionAst* step = nullptr;
     QString dump() const override;
 };
 
@@ -794,8 +802,8 @@ public:
 class KDEVPYTHONPARSER_EXPORT ArgAst : public Ast {
 public:
     ArgAst(Ast* parent);
-    Identifier* argumentName;
-    ExpressionAst* annotation;
+    Identifier* argumentName = nullptr;
+    ExpressionAst* annotation = nullptr;
     QString dump() const override;
 };
 
@@ -807,40 +815,40 @@ public:
     QList<ArgAst*> posonlyargs;
     QList<ExpressionAst*> defaultValues;
     QList<ExpressionAst*> defaultKwValues;
-    ArgAst* vararg;
-    ArgAst* kwarg;
+    ArgAst* vararg = nullptr;
+    ArgAst* kwarg = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT KeywordAst : public Ast {
 public:
     KeywordAst(Ast* parent);
-    Identifier* argumentName;
-    ExpressionAst* value;
+    Identifier* argumentName = nullptr;
+    ExpressionAst* value = nullptr;
     QString dump() const override;
 };
 
 class KDEVPYTHONPARSER_EXPORT ComprehensionAst : public Ast {
 public:
     ComprehensionAst(Ast* parent);
-    ExpressionAst* target;
-    ExpressionAst* iterator;
+    ExpressionAst* target = nullptr;
+    ExpressionAst* iterator = nullptr;
     QList<ExpressionAst*> conditions;
 };
 
 class KDEVPYTHONPARSER_EXPORT ExceptionHandlerAst : public Ast {
 public:
-    ExceptionHandlerAst(Ast* parent);
-    ExpressionAst* type;
-    Identifier* name;
+    ExceptionHandlerAst(Ast* parent) : Ast(parent, Ast::ExceptionHandlerAstType) {};
+    ExpressionAst* type = nullptr;
+    Identifier* name = nullptr;
     QList<Ast*> body;
 };
 
 class KDEVPYTHONPARSER_EXPORT AliasAst : public Ast {
 public:
-    AliasAst(Ast* parent);
-    Identifier* name;
-    Identifier* asName;
+    AliasAst(Ast* parent) : Ast(parent, Ast::AliasAstType) {};
+    Identifier* name = nullptr;
+    Identifier* asName = nullptr;
     QString dump() const override;
 };
 

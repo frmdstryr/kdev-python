@@ -39,6 +39,10 @@
 #include <QDebug>
 #include "duchaindebug.h"
 
+#ifdef BUILD_ENAML_SUPPORT
+#include "enaml_ast.h"
+#endif
+
 #include <functional>
 
 using namespace KTextEditor;
@@ -701,6 +705,19 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
         problemEncountered = p;
         return nullptr;
     }
+    else if ( moduleInfo.first.toString().endsWith(QStringLiteral(".so")) ) {
+        // Do not show a not found error, it is a C module (.so) which is not
+        // readable by kdevelop
+        qCDebug(KDEV_PYTHON_DUCHAIN) << "c extensions cannot be parsed:" << moduleInfo;
+        KDevelop::Problem *p = new KDevelop::Problem();
+        p->setFinalLocation(DocumentRange(currentlyParsedDocument(), range.castToSimpleRange()));
+        p->setSource(KDevelop::IProblem::SemanticAnalysis);
+        p->setSeverity(KDevelop::IProblem::Hint);
+        p->setDescription(i18n("Extensions cannot be analyzed by KDevelop"));
+        m_missingModules.append(IndexedString(moduleName));
+        problemEncountered = p;
+        return nullptr;
+    }
     if ( ! moduleContext ) {
         // schedule the include file for parsing, and schedule the current one for reparsing after that is done
         qCDebug(KDEV_PYTHON_DUCHAIN) << "No module context, recompiling";
@@ -719,14 +736,14 @@ Declaration* DeclarationBuilder::createModuleImportDeclaration(QString moduleNam
         if ( path.endsWith(initFile) ) {
             // if the __init__ file is imported, import all the other files in that directory as well
             QDir dir(path.left(path.size() - initFile.size()));
-            dir.setNameFilters({QStringLiteral("*.py")});
+            dir.setNameFilters({QStringLiteral("*.py"), QStringLiteral("*.pyx"), QStringLiteral("*.enaml")});
             dir.setFilter(QDir::Files);
             auto files = dir.entryList();
             for ( const auto& file : files ) {
                 if ( file == QStringLiteral("__init__.py") ) {
                     continue;
                 }
-                const auto filePath = declarationName.split(QLatin1Char('.')) << file.left(file.lastIndexOf(QStringLiteral(".py")));
+                const auto filePath = declarationName.split(QLatin1Char('.')) << file.left(file.lastIndexOf(QStringLiteral(".")));
                 const auto fileUrl = QUrl::fromLocalFile(dir.path() + QLatin1Char('/') + file);
                 ReferencedTopDUContext fileContext;
                 {
@@ -924,7 +941,7 @@ void DeclarationBuilder::addArgumentTypeHints(CallAst* node, DeclarationPointer 
     // Look for the "self" in the argument list, the type of that should not be updated.
     bool hasSelfParam = false;
     if ( ( function->context()->type() == DUContext::Class || funcInfo.isConstructor )
-            && ! function->isStatic() )
+            && ! function->isStatic() && ! function->isDynamicallyScoped() )
     {
         // ... unless for some reason the function only has *vararg, **kwarg as parameters
         // (this could happen for example if the method is static but kdev-python does not know,
@@ -1225,6 +1242,20 @@ void DeclarationBuilder::assignToAttribute(AttributeAst* attrib, const Declarati
                                                        attrib->attribute->value, topContext());
     }
 
+    bool isSlot = false;
+    // TOOD: determine if __slot__ for normal python case
+#ifdef BUILD_ENAML_SUPPORT
+    if (dynamic_cast<Enaml::BindingAst*>(attrib->parent) || dynamic_cast<Enaml::ExBindingAst*>(attrib->parent)) {
+        isSlot = true;
+    }
+#endif
+
+    if ( !attributeDeclaration && isSlot )
+    {
+        qCDebug(KDEV_PYTHON_DUCHAIN) << "Aborting creation of attribute that is slot";
+        return;
+    }
+
     if ( ! attributeDeclaration || ! wasEncountered(attributeDeclaration) ) {
         // inject a new attribute into the class type
         DUContext* previousContext = currentContext();
@@ -1475,6 +1506,24 @@ void DeclarationBuilder::visitClassDefinition( ClassDefinitionAst* node )
     openContextForClassDefinition(node);
     dec->setInternalContext(currentContext());
 
+#ifdef BUILD_ENAML_SUPPORT
+    if (auto n = dynamic_cast<Enaml::EnamlDefAst*>(node)) {
+        // Add enaml self and identifier
+        dec->setDynamicallyScoped(true);
+        Declaration* obj = openDeclaration<Declaration>(n->self);
+        obj->setType(type);
+        obj->setKind(KDevelop::Declaration::Instance);
+        obj->setAutoDeclaration(true);
+        DeclarationBuilderBase::closeDeclaration();
+        if (n->identifier)
+        {
+            lock.unlock();
+            assignToName(n->identifier, SourceType{type, DeclarationPointer(obj), false});
+            lock.lock();
+        }
+    }
+#endif
+
     lock.unlock();
     visitNodeList(node->body);
     lock.lock();
@@ -1511,6 +1560,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
     dec->setStatic(false);
     dec->setClassMethod(false);
     dec->setProperty(false);
+    dec->setDynamicallyScoped(false);
     for ( auto decorator : node->decorators) {
         visitNode(decorator);
         switch (decorator->astType) {
@@ -1535,6 +1585,15 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
           default: {}
         }
     }
+
+#ifdef BUILD_ENAML_SUPPORT
+    if (
+        dynamic_cast<Enaml::EnamlDefAst*>(node->parent)
+        || dynamic_cast<Enaml::ChildDefAst*>(node->parent)
+    )
+        dec->setDynamicallyScoped(true);
+#endif
+
     visitFunctionArguments(node);
     visitFunctionBody(node);
     lock.lock();
@@ -1545,7 +1604,12 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
     closeType();
 
     // python methods don't have their parents attributes directly inside them
-    if ( eventualParentDeclaration && eventualParentDeclaration->internalContext() && dec->internalContext() ) {
+    if (
+        eventualParentDeclaration
+        && eventualParentDeclaration->internalContext()
+        && dec->internalContext()
+        && !dec->isDynamicallyScoped()
+    ) {
         dec->internalContext()->removeImportedParentContext(eventualParentDeclaration->internalContext());
     }
     
@@ -1563,7 +1627,7 @@ void DeclarationBuilder::visitFunctionDefinition( FunctionDefinitionAst* node )
         dec->setType(type);
     }
 
-    if ( ! dec->isStatic() ) {
+    if ( ! dec->isStatic() && ! dec->isDynamicallyScoped() ) {
         DUContext* args = DUChainUtils::argumentContext(dec);
         if ( args )  {
             QVector<Declaration*> parameters = args->localDeclarations();
@@ -1854,7 +1918,8 @@ void DeclarationBuilder::visitArguments( ArgumentsAst* node )
         }
 
 
-        if ( isFirst && ! workingOnDeclaration->isStatic() && currentContext() && currentContext()->parentContext() ) {
+        if ( isFirst && ! workingOnDeclaration->isStatic() && ! workingOnDeclaration->isDynamicallyScoped()
+                && currentContext() && currentContext()->parentContext() ) {
             DUChainReadLocker lock;
             if ( currentContext()->parentContext()->type() == DUContext::Class ) {
                 argumentType = m_currentClassTypes.last();

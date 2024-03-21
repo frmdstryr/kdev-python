@@ -5,9 +5,24 @@ set(parser_STAT_SRCS
     astdefaultvisitor.cpp
     astvisitor.cpp
     astbuilder.cpp
-    asttransformer.cpp
+    python_asttransformer.cpp
     rangefixvisitor.cpp
 )
+
+if (BUILD_ENAML_SUPPORT)
+    list(APPEND parser_STAT_SRCS
+        enaml_asttransformer.cpp
+        enaml_rangefixvisitor.cpp
+        enaml_ast.cpp
+    )
+endif()
+
+if (BUILD_CYTHON_SUPPORT)
+    list(APPEND parser_STAT_SRCS
+        cython_asttransformer.cpp
+    )
+endif()
+
 ecm_qt_declare_logging_category(parser_STAT_SRCS
     HEADER parserdebug.h
     IDENTIFIER KDEV_PYTHON_PARSER

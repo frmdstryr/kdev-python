@@ -28,6 +28,7 @@ public:
     void visitClassDefinition(ClassDefinitionAst* node) override;
     void visitAttribute(AttributeAst* node) override;
     void visitImport(ImportAst* node) override;
+    void visitImportFrom(ImportFromAst* node) override;
     void visitExceptionHandler(ExceptionHandlerAst* node) override;
     void visitString(Python::StringAst* node) override;
     void visitBytes(Python::BytesAst* node) override;
@@ -38,7 +39,7 @@ public:
     void visitList(Python::ListAst* node) override;
     void visitTuple(Python::TupleAst* node) override;
 
-private:
+protected:
     void cutDefinitionPreamble(Ast* fixNode, const QString& defKeyword);
     int backtrackDottedName(const QString& data, const int start);
     void fixAlias(Ast* dotted, Ast* asname, const int startLine, int aliasIndex);

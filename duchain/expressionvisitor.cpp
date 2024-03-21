@@ -600,14 +600,16 @@ void ExpressionVisitor::visitBytes(Python::BytesAst* ) {
     encounter(type);
 }
 
-void ExpressionVisitor::visitFormattedValue(Python::FormattedValueAst* ) {
+void ExpressionVisitor::visitFormattedValue(Python::FormattedValueAst* node) {
+    Python::AstDefaultVisitor::visitFormattedValue(node);
     DUChainReadLocker lock;
     StructureType::Ptr type = typeObjectForIntegralType<StructureType>(QStringLiteral("str"));
     encounter(type);
 }
 
-void ExpressionVisitor::visitJoinedString(Python::JoinedStringAst* )
+void ExpressionVisitor::visitJoinedString(Python::JoinedStringAst* node)
 {
+    Python::AstDefaultVisitor::visitJoinedString(node);
     DUChainReadLocker lock;
     StructureType::Ptr type = typeObjectForIntegralType<StructureType>(QStringLiteral("str"));
     encounter(type);

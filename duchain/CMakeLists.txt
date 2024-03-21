@@ -1,4 +1,5 @@
 set(duchain_SRCS
+    declarations/classdeclaration.cpp
     declarations/functiondeclaration.cpp
 
     types/nonetype.cpp
